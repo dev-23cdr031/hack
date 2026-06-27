@@ -115,6 +115,16 @@ interface ProfileStats {
   projectsCompleted: number
 }
 
+const isTeamAvatar = (avatarUrl?: string) => Boolean(avatarUrl?.startsWith("/team/"))
+
+const sanitizeCurrentUserProfile = (profile: UserType): UserType => {
+  if (isTeamAvatar(profile.avatar_url)) {
+    return { ...profile, avatar_url: "/placeholder-user.jpg" }
+  }
+
+  return profile
+}
+
 export default function ProfilePage() {
   const [user, setUser] = useState<UserType | null>(null)
   const [skills, setSkills] = useState<Skill[]>([])
@@ -205,7 +215,9 @@ export default function ProfilePage() {
 
           if (localUser?.id === userId) {
             console.log('Using locally stored profile for user ID:', userId)
-            setUser(localUser)
+            const sanitizedLocalUser = sanitizeCurrentUserProfile(localUser)
+            localStorage.setItem('user', JSON.stringify(sanitizedLocalUser))
+            setUser(sanitizedLocalUser)
             if (localUser.skills && Array.isArray(localUser.skills)) {
               setSkills(localUser.skills.map((skill: string, index: number) => ({
                 id: `skill-${index}`,
@@ -224,36 +236,7 @@ export default function ProfilePage() {
             return
           }
 
-          console.log('User not found with ID:', userId, 'Trying with default mock user ID "dev-dharrshan"')
-          // Try with a known valid mock user ID
-          const fallbackResponse = await fetch(`/api/users/dev-dharrshan`)
-          
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json()
-            console.log('Successfully fetched fallback user:', fallbackData.name)
-            
-            // Update localStorage with the valid user ID
-            localStorage.setItem('userId', fallbackData.id)
-            localStorage.setItem('user', JSON.stringify(fallbackData))
-            
-            setUser(fallbackData)
-            if (fallbackData.skills && Array.isArray(fallbackData.skills)) {
-              setSkills(fallbackData.skills.map((skill: string, index: number) => ({
-                id: `skill-${index}`,
-                name: skill,
-                level: Math.floor(Math.random() * 30) + 70,
-                category: getSkillCategory(skill),
-                yearsOfExperience: Math.floor(Math.random() * 5) + 1,
-                endorsed: Math.random() > 0.5
-              })))
-            }
-            loadMockEducation()
-            loadMockExperience()
-            loadMockAchievements()
-            loadMockStats()
-            setProjects([])
-            return
-          }
+          console.log('User not found with ID:', userId)
         }
         
         const errorText = await userResponse.text()
@@ -263,7 +246,11 @@ export default function ProfilePage() {
 
       const userData = await userResponse.json()
       console.log('User data received:', userData)
-      setUser(userData)
+      const sanitizedUserData = sanitizeCurrentUserProfile(userData)
+      if (sanitizedUserData.avatar_url !== userData.avatar_url) {
+        localStorage.setItem('user', JSON.stringify(sanitizedUserData))
+      }
+      setUser(sanitizedUserData)
 
       // Parse skills from user data (stored as JSON array)
       if (userData.skills && Array.isArray(userData.skills)) {

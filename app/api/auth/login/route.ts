@@ -2,16 +2,12 @@ import { type NextRequest, NextResponse } from "next/server"
 import { mockUsers } from "@/app/api/users/mockData"
 
 const demoPasswords = new Set(["demo123", "student123", "password123"])
+const demoAliases = new Set(["demo@hackconnect.dev", "student@hackconnect.dev", "demo@example.com"])
 
 function getMockLoginUser(email: string) {
   const normalizedEmail = email.toLowerCase().trim()
 
-  return (
-    mockUsers.find((user) => user.email.toLowerCase() === normalizedEmail) ||
-    (["demo@hackconnect.dev", "student@hackconnect.dev", "demo@example.com"].includes(normalizedEmail)
-      ? mockUsers[0]
-      : null)
-  )
+  return mockUsers.find((user) => user.email.toLowerCase() === normalizedEmail) || null
 }
 
 function createLocalUser(email: string) {
@@ -24,7 +20,7 @@ function createLocalUser(email: string) {
     bio: "New HackConnect user",
     title: "Developer",
     skills: ["JavaScript", "React"],
-    avatar_url: "/team/dev-dharrshan.jpg",
+    avatar_url: "/placeholder-user.jpg",
     github_url: "",
     linkedin_url: "",
     portfolio_url: "",
@@ -41,6 +37,21 @@ export async function POST(request: NextRequest) {
     // Basic validation
     if (!email || !password) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
+    }
+
+    const normalizedEmail = email.toLowerCase().trim()
+    const isDemoAlias = demoAliases.has(normalizedEmail)
+
+    if (isDemoAlias && demoPasswords.has(String(password))) {
+      return NextResponse.json({
+        success: true,
+        user: createLocalUser(normalizedEmail),
+        message: "Login successful",
+      })
+    }
+
+    if (isDemoAlias) {
+      return NextResponse.json({ error: "Invalid demo password" }, { status: 401 })
     }
 
     const demoUser = getMockLoginUser(email)

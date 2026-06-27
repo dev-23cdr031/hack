@@ -20,7 +20,7 @@ export function Chatbot({ onClose }: ChatbotProps) {
     {
       id: "1",
       content:
-        "Hi! I'm HackBot, your AI assistant with a female voice! 🎤 Try saying 'hi' or 'hello' for personalized greetings. I can help you with finding teams, discovering hackathons, or answering questions about our platform. How can I help you today?",
+        "Hi! I'm HackBot, your AI assistant.Try saying 'hi' or 'hello' for personalized greetings. I can help you with finding teams, discovering hackathons, or answering questions about our platform. How can I help you today?",
       sender: "bot",
       timestamp: new Date(),
     },
