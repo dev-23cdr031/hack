@@ -1,0 +1,244 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
+import Image from "next/image"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft, Calendar, Heart, Mail, MessageCircle, Star } from "lucide-react"
+import { mockUsers } from "@/app/api/users/mockData"
+import type { User as Profile } from "@/lib/types"
+
+type PublicProfile = Profile & {
+  hackathons_participated?: number
+  skill_endorsements?: number
+  total_projects?: number
+}
+
+const localUsers = mockUsers as PublicProfile[]
+
+export default function PublicProfilePage() {
+  const params = useParams()
+  const userId = params.id as string
+  const [user, setUser] = useState<PublicProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [sendingRequest, setSendingRequest] = useState(false)
+
+  useEffect(() => {
+    if (!userId) {
+      setError("No user ID provided")
+      setLoading(false)
+      return
+    }
+
+    const loadUser = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/users/${userId}`)
+
+        if (response.ok) {
+          setUser(await response.json())
+          setError(null)
+          return
+        }
+
+        const fallback = localUsers.find((profile) => profile.id === userId)
+        if (fallback) {
+          setUser(fallback)
+          setError(null)
+          return
+        }
+
+        setError("The profile you are looking for does not exist.")
+      } catch {
+        const fallback = localUsers.find((profile) => profile.id === userId)
+        if (fallback) {
+          setUser(fallback)
+          setError(null)
+        } else {
+          setError("Unable to load this profile right now.")
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadUser()
+  }, [userId])
+
+  const sendConnectionRequest = async () => {
+    if (!user) return
+
+    try {
+      setSendingRequest(true)
+      await new Promise((resolve) => setTimeout(resolve, 800))
+      alert("Connection request sent successfully!")
+    } catch {
+      alert("Failed to send connection request")
+    } finally {
+      setSendingRequest(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-t-blue-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-300">Loading profile...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !user) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+        <div className="text-center max-w-md mx-auto rounded-xl border border-gray-800 bg-gray-900/80 p-8">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 text-2xl font-bold text-red-300">
+            !
+          </div>
+          <h1 className="text-2xl font-bold mb-2">Error Loading Profile</h1>
+          <p className="text-gray-400 mb-6">{error}</p>
+          <div className="flex flex-col gap-3">
+            <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
+              Try Again
+            </Button>
+            <Button asChild className="bg-green-600 hover:bg-green-700">
+              <Link href="/public/profile/dev-dharrshan">View Demo Profile</Link>
+            </Button>
+            <Button asChild variant="outline" className="border-gray-600 hover:bg-gray-800">
+              <Link href="/public">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Profiles
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+        <Link href="/public" className="flex items-center gap-2 text-gray-300 hover:text-blue-400 transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Profiles
+        </Link>
+        <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          HackConnect
+        </Link>
+      </nav>
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <section className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 border border-gray-700 rounded-xl overflow-hidden shadow-xl mb-8">
+          <div className="h-3 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
+
+          <div className="p-8">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+              <div className="relative h-36 w-36 flex-shrink-0">
+                <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-sm opacity-70" />
+                <Image
+                  src={user.avatar_url || "/placeholder-user.jpg"}
+                  alt={user.name}
+                  width={144}
+                  height={144}
+                  className="relative h-36 w-36 rounded-full object-cover border-4 border-white/20"
+                  priority
+                />
+                <span className="absolute bottom-3 right-3 w-6 h-6 bg-green-500 border-4 border-gray-900 rounded-full" />
+              </div>
+
+              <div className="flex-1 text-center md:text-left">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                  {user.name}
+                </h1>
+                <p className="text-xl text-gray-300 mb-4">{user.title || "Developer"}</p>
+
+                <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-6">
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <Mail className="w-4 h-4" />
+                    <span className="text-sm">{user.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm">Joined {new Date(user.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap justify-center md:justify-start gap-3">
+                  <Button
+                    onClick={sendConnectionRequest}
+                    disabled={sendingRequest}
+                    className="bg-gradient-to-r from-pink-600 to-red-600 hover:from-pink-700 hover:to-red-700 text-white border border-pink-700"
+                  >
+                    <Heart className="w-4 h-4 mr-2" />
+                    {sendingRequest ? "Sending..." : "Connect"}
+                  </Button>
+                  <Button asChild className="bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white border border-purple-700">
+                    <Link href="/messages">
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Message
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <section className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 border border-gray-700 rounded-xl p-6">
+              <h2 className="text-2xl font-bold text-white mb-4 flex items-center">
+                <Star className="w-5 h-5 mr-2 text-blue-400" />
+                About
+              </h2>
+              <p className="text-gray-300 leading-relaxed">{user.bio || "No bio provided yet."}</p>
+            </section>
+
+            <section className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 border border-gray-700 rounded-xl p-6">
+              <h2 className="text-2xl font-bold text-white mb-4">Skills & Expertise</h2>
+              {user.skills?.length ? (
+                <div className="flex flex-wrap gap-3">
+                  {user.skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="px-4 py-2 bg-gradient-to-r from-purple-900/40 to-blue-900/40 border border-purple-700/30 rounded-full text-sm font-medium text-purple-300"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">No skills listed yet.</p>
+              )}
+            </section>
+          </div>
+
+          <aside className="space-y-6">
+            <section className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 border border-gray-700 rounded-xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4">Stats</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Projects</span>
+                  <span className="text-blue-400 font-bold">{user.total_projects || 12}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Hackathons</span>
+                  <span className="text-purple-400 font-bold">{user.hackathons_participated || 8}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Endorsements</span>
+                  <span className="text-pink-400 font-bold">{user.skill_endorsements || 24}</span>
+                </div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  )
+}

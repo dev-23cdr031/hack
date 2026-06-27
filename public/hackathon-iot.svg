@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="g-iot" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g-iot)"/>
+  <g stroke="#d1fae5" opacity="0.35" fill="none" stroke-width="2">
+    <circle cx="180" cy="160" r="60"/>
+    <line x1="240" y1="160" x2="340" y2="220"/>
+    <circle cx="360" cy="230" r="30"/>
+  </g>
+  <text x="60" y="300" font-family="Inter,Segoe UI,Arial,sans-serif" font-weight="800" font-size="72" fill="#ffffff">IoT & Edge Hack</text>
+  <text x="60" y="370" font-family="Inter,Segoe UI,Arial,sans-serif" font-weight="500" font-size="28" fill="#ecfeff">Sensors • Cloud • Real-time</text>
+  <rect x="60" y="420" rx="10" ry="10" width="330" height="56" fill="#ffffff" opacity="0.15"/>
+  <text x="80" y="458" font-family="Inter,Segoe UI,Arial,sans-serif" font-weight="600" font-size="22" fill="#ffffff">hackconnect.dev/hackathons/iot</text>
+</svg>
