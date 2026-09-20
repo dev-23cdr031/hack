@@ -339,7 +339,7 @@ export default function FAQPage() {
 
       {/* Footer */}
       <footer className="py-8 px-6 bg-gray-900 text-center">
-        <p className="text-gray-400">© 2025 HackConnect. Here to help you succeed.</p>
+        <p className="text-gray-400">© 2026 HackConnect. Here to help you succeed.</p>
       </footer>
     </div>
   )

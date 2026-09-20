@@ -272,7 +272,7 @@ export default function AboutPage() {
 
       {/* Footer */}
       <footer className="py-8 px-6 bg-gray-900 text-center">
-        <p className="text-gray-400">© 2025 HackConnect. Built with ❤️ by developers, for developers.</p>
+        <p className="text-gray-400">© 2026 HackConnect. Built with ❤️ by developers, for developers.</p>
       </footer>
     </div>
   )
