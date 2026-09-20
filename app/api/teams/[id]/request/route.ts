@@ -18,8 +18,51 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'User ID required' }, { status: 400 })
     }
 
-    // Check if team exists
-    const team = mockTeams.find(t => t.id === teamId)
+    // Check if team exists (mock first, then real database)
+    let team = mockTeams.find(t => t.id === teamId)
+
+    if (!team && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId)) {
+      const supabase = createServerSupabaseClient()
+      const { data: dbTeam, error: teamError } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('id', teamId)
+        .single()
+
+      if (teamError || !dbTeam) {
+        console.log('Join Request API: Database error looking up team:', teamError?.message)
+        return NextResponse.json({ error: 'Team not found' }, { status: 404 })
+      }
+
+      // Fetch team members so the "already a member" and "team is full" checks work
+      let members: any[] = []
+      try {
+        const { data: memberRows } = await supabase
+          .from('team_members')
+          .select('user_id')
+          .eq('team_id', dbTeam.id)
+        if (memberRows) {
+          members = memberRows.map((mr: any) => ({ id: mr.user_id }))
+        }
+      } catch (e) {
+        console.log('Join Request API: Member fetch failed:', e)
+      }
+
+      // Build a team object compatible with the rest of the handler
+      team = {
+        id: dbTeam.id,
+        name: dbTeam.name,
+        description: dbTeam.description,
+        leader_id: dbTeam.leader_id,
+        max_members: dbTeam.max_members,
+        current_members: dbTeam.current_members,
+        skills_needed: dbTeam.skills_needed || [],
+        status: dbTeam.status,
+        project_idea: dbTeam.project_idea,
+        members,
+      } as any
+    }
+
     if (!team) {
       return NextResponse.json({ error: 'Team not found' }, { status: 404 })
     }

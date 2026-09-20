@@ -74,8 +74,8 @@ export default function OrganizerLoginPage() {
         localStorage.setItem("isAuthenticated", "true")
         localStorage.setItem("userType", "organizer")
 
-        // Redirect to hackathons page
-        router.push("/hackathons")
+        // Redirect to home page
+        router.push("/")
       } else {
         setError(data.error || "Login failed")
       }

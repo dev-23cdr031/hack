@@ -74,8 +74,8 @@ export default function GuideLoginPage() {
         localStorage.setItem("isAuthenticated", "true")
         localStorage.setItem("userType", "guide")
 
-        // Redirect to hackathons page
-        router.push("/hackathons")
+        // Redirect to home page
+        router.push("/")
       } else {
         setError(data.error || "Login failed")
       }

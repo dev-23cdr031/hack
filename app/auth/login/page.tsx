@@ -107,7 +107,7 @@ export default function LoginPage() {
       localStorage.setItem("userType", currentUser.role || "student")
 
       const userIsAdmin = isAdminEmail(data.user.email)
-      router.push(userIsAdmin ? "/admin" : "/profile")
+      router.push(userIsAdmin ? "/admin" : "/")
     } catch (error: any) {
       console.error("Login error:", error)
       // Show actual Supabase error messages instead of generic network error

@@ -183,7 +183,7 @@ export default function SignupPage() {
       localStorage.setItem("isAuthenticated", "true")
       localStorage.setItem("userType", formData.userType || "student")
 
-      router.push(formData.userType === "admin" ? "/admin" : "/profile")
+      router.push(formData.userType === "admin" ? "/admin" : "/")
     } catch (error: any) {
       console.error("Signup error:", error)
       // Show actual Supabase error messages instead of generic network error
