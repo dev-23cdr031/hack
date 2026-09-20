@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { X } from 'lucide-react'
 
@@ -23,7 +24,11 @@ export function EditProfileModal({ user, onClose, onSave }: EditProfileModalProp
     avatar_url: user.avatar_url || '',
     github_url: user.github_url || '',
     linkedin_url: user.linkedin_url || '',
-    portfolio_url: user.portfolio_url || ''
+    portfolio_url: user.portfolio_url || '',
+    location: user.location || '',
+    experience_level: user.experience_level || 'beginner',
+    role: user.role || 'student',
+    skills: user.skills?.join(', ') || ''
   })
 
   const [loading, setLoading] = useState(false)
@@ -33,7 +38,24 @@ export function EditProfileModal({ user, onClose, onSave }: EditProfileModalProp
     setLoading(true)
     
     try {
-      await onSave(formData)
+      const skillsArray = formData.skills
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+      
+      await onSave({
+        name: formData.name,
+        title: formData.title,
+        bio: formData.bio,
+        avatar_url: formData.avatar_url,
+        github_url: formData.github_url,
+        linkedin_url: formData.linkedin_url,
+        portfolio_url: formData.portfolio_url,
+        location: formData.location,
+        experience_level: formData.experience_level,
+        role: formData.role,
+        skills: skillsArray
+      })
     } finally {
       setLoading(false)
     }
@@ -43,6 +65,13 @@ export function EditProfileModal({ user, onClose, onSave }: EditProfileModalProp
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
+    }))
+  }
+
+  const handleSelectChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
     }))
   }
 
@@ -93,6 +122,61 @@ export function EditProfileModal({ user, onClose, onSave }: EditProfileModalProp
                 onChange={handleChange}
                 placeholder="Tell us about yourself..."
                 className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400 min-h-[100px]"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="location" className="text-gray-200">Location</Label>
+                <Input
+                  id="location"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  placeholder="City, College, Country"
+                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="experience_level" className="text-gray-200">Experience Level</Label>
+                <Select value={formData.experience_level} onValueChange={(value) => handleSelectChange("experience_level", value)}>
+                  <SelectTrigger id="experience_level" className="bg-gray-800 border-gray-700 text-white w-full">
+                    <SelectValue placeholder="Select experience level" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700">
+                    <SelectItem value="beginner" className="text-white">Beginner</SelectItem>
+                    <SelectItem value="intermediate" className="text-white">Intermediate</SelectItem>
+                    <SelectItem value="advanced" className="text-white">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="role" className="text-gray-200">Role / User Type</Label>
+              <Select value={formData.role} onValueChange={(value) => handleSelectChange("role", value)}>
+                <SelectTrigger id="role" className="bg-gray-800 border-gray-700 text-white w-full">
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-700">
+                  <SelectItem value="student" className="text-white">Student</SelectItem>
+                  <SelectItem value="mentor" className="text-white">Mentor</SelectItem>
+                  <SelectItem value="organizer" className="text-white">Organizer</SelectItem>
+                  <SelectItem value="admin" className="text-white">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="skills" className="text-gray-200">Skills (comma separated)</Label>
+              <Input
+                id="skills"
+                name="skills"
+                value={formData.skills}
+                onChange={handleChange}
+                placeholder="e.g. JavaScript, React, Node.js"
+                className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
               />
             </div>
 

@@ -5,8 +5,7 @@ import { useParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Calendar, Heart, Mail, MessageCircle, Star } from "lucide-react"
-import { mockUsers } from "@/app/api/users/mockData"
+import { ArrowLeft, Calendar, Heart, Mail, MessageCircle, MapPin, GraduationCap, Users, Star } from "lucide-react"
 import type { User as Profile } from "@/lib/types"
 
 type PublicProfile = Profile & {
@@ -14,8 +13,6 @@ type PublicProfile = Profile & {
   skill_endorsements?: number
   total_projects?: number
 }
-
-const localUsers = mockUsers as PublicProfile[]
 
 export default function PublicProfilePage() {
   const params = useParams()
@@ -38,27 +35,61 @@ export default function PublicProfilePage() {
         const response = await fetch(`/api/users/${userId}`)
 
         if (response.ok) {
-          setUser(await response.json())
-          setError(null)
-          return
-        }
+          const userData = await response.json()
 
-        const fallback = localUsers.find((profile) => profile.id === userId)
-        if (fallback) {
-          setUser(fallback)
+          // Fetch real-time stats from database
+          let totalProjects = 0
+          let totalHackathons = 0
+          let totalEndorsements = 0
+
+          try {
+            const projectsRes = await fetch(`/api/projects?user_id=${userId}`)
+            if (projectsRes.ok) {
+              const projectsData = await projectsRes.json()
+              totalProjects = Array.isArray(projectsData) ? projectsData.length : (projectsData.projects?.length || 0)
+            }
+          } catch {}
+
+          try {
+            const hackRes = await fetch(`/api/hackathons/registrations?user_id=${userId}`)
+            if (hackRes.ok) {
+              const hackData = await hackRes.json()
+              totalHackathons = Array.isArray(hackData) ? hackData.length : (hackData.registrations?.length || 0)
+            }
+          } catch {}
+
+          try {
+            // Fetch connections (received + sent requests with accepted status)
+            const [receivedRes, sentRes] = await Promise.all([
+              fetch(`/api/requests?receiver_id=${userId}`),
+              fetch(`/api/requests?sender_id=${userId}`)
+            ])
+            
+            if (receivedRes.ok) {
+              const receivedData = await receivedRes.json()
+              const received = Array.isArray(receivedData) ? receivedData : (receivedData.requests || [])
+              totalEndorsements += received.filter((r: any) => r.status === 'accepted').length
+            }
+            if (sentRes.ok) {
+              const sentData = await sentRes.json()
+              const sent = Array.isArray(sentData) ? sentData : (sentData.requests || [])
+              totalEndorsements += sent.filter((r: any) => r.status === 'accepted').length
+            }
+          } catch {}
+
+          setUser({
+            ...userData,
+            total_projects: totalProjects,
+            hackathons_participated: totalHackathons,
+            skill_endorsements: totalEndorsements
+          })
           setError(null)
           return
         }
 
         setError("The profile you are looking for does not exist.")
       } catch {
-        const fallback = localUsers.find((profile) => profile.id === userId)
-        if (fallback) {
-          setUser(fallback)
-          setError(null)
-        } else {
-          setError("Unable to load this profile right now.")
-        }
+        setError("Unable to load this profile right now.")
       } finally {
         setLoading(false)
       }
@@ -72,10 +103,30 @@ export default function PublicProfilePage() {
 
     try {
       setSendingRequest(true)
-      await new Promise((resolve) => setTimeout(resolve, 800))
+      const raw = localStorage.getItem('user')
+      const me = raw ? JSON.parse(raw) : null
+      
+      if (!me?.id) {
+        alert('Please log in first to send connection requests.')
+        window.location.href = '/auth/login'
+        return
+      }
+      
+      const res = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender_id: me.id, receiver_id: user.id })
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send request')
+      }
+      
       alert("Connection request sent successfully!")
-    } catch {
-      alert("Failed to send connection request")
+    } catch (e: any) {
+      alert(`Failed to send connection request: ${e?.message || 'Failed to send connection request'}`)
     } finally {
       setSendingRequest(false)
     }
@@ -105,9 +156,6 @@ export default function PublicProfilePage() {
             <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
               Try Again
             </Button>
-            <Button asChild className="bg-green-600 hover:bg-green-700">
-              <Link href="/public/profile/dev-dharrshan">View Demo Profile</Link>
-            </Button>
             <Button asChild variant="outline" className="border-gray-600 hover:bg-gray-800">
               <Link href="/public">
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -122,12 +170,13 @@ export default function PublicProfilePage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <Link href="/public" className="flex items-center gap-2 text-gray-300 hover:text-blue-400 transition-colors">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+        <Link href="/public" className="flex items-center gap-2 text-gray-300 hover:text-blue-400 transition-colors text-sm sm:text-base">
           <ArrowLeft className="w-4 h-4" />
-          Back to Profiles
+          <span className="hidden sm:inline">Back to Profiles</span>
+          <span className="sm:hidden">Profiles</span>
         </Link>
-        <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+        <Link href="/" className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate">
           HackConnect
         </Link>
       </nav>
@@ -157,7 +206,7 @@ export default function PublicProfilePage() {
                 </h1>
                 <p className="text-xl text-gray-300 mb-4">{user.title || "Developer"}</p>
 
-                <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-6">
+                <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-4">
                   <div className="flex items-center gap-2 text-gray-400">
                     <Mail className="w-4 h-4" />
                     <span className="text-sm">{user.email}</span>
@@ -166,7 +215,28 @@ export default function PublicProfilePage() {
                     <Calendar className="w-4 h-4" />
                     <span className="text-sm">Joined {new Date(user.created_at).toLocaleDateString()}</span>
                   </div>
+                  {user.location && (
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <MapPin className="w-4 h-4" />
+                      <span className="text-sm">{user.location}</span>
+                    </div>
+                  )}
                 </div>
+
+                {(user.role || user.experience_level) && (
+                  <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-4">
+                    {user.role && (
+                      <span className="px-3 py-1 rounded-full bg-blue-600/20 border border-blue-600/30 text-sm font-medium text-blue-300 capitalize flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5" /> {user.role}
+                      </span>
+                    )}
+                    {user.experience_level && (
+                      <span className="px-3 py-1 rounded-full bg-purple-600/20 border border-purple-600/30 text-sm font-medium text-purple-300 capitalize flex items-center gap-1">
+                        <GraduationCap className="w-3.5 h-3.5" /> {user.experience_level} level
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex flex-wrap justify-center md:justify-start gap-3">
                   <Button
@@ -178,7 +248,7 @@ export default function PublicProfilePage() {
                     {sendingRequest ? "Sending..." : "Connect"}
                   </Button>
                   <Button asChild className="bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white border border-purple-700">
-                    <Link href="/messages">
+                    <Link href={`/messages?user=${userId}`}>
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Message
                     </Link>
@@ -224,15 +294,15 @@ export default function PublicProfilePage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Projects</span>
-                  <span className="text-blue-400 font-bold">{user.total_projects || 12}</span>
+                  <span className="text-blue-400 font-bold">{user.total_projects || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Hackathons</span>
-                  <span className="text-purple-400 font-bold">{user.hackathons_participated || 8}</span>
+                  <span className="text-purple-400 font-bold">{user.hackathons_participated || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Endorsements</span>
-                  <span className="text-pink-400 font-bold">{user.skill_endorsements || 24}</span>
+                  <span className="text-gray-400">Connections</span>
+                  <span className="text-pink-400 font-bold">{user.skill_endorsements || 0}</span>
                 </div>
               </div>
             </section>

@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, Users, MessageCircle } from "lucide-react"
+import { HamburgerMenu } from "@/components/hamburger-menu"
 import Link from "next/link"
 import type { Team } from "@/lib/types"
-import { mockTeams } from "@/lib/mock-teams"
 
 export default function FindTeamsPage() {
   const [teams, setTeams] = useState<Team[]>([])
@@ -19,11 +19,21 @@ export default function FindTeamsPage() {
   const [statusFilter, setStatusFilter] = useState("all")
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setTeams(mockTeams)
-      setLoading(false)
-    }, 1000)
+    // Fetch teams from the API (no mock data)
+    const fetchTeams = async () => {
+      try {
+        const res = await fetch('/api/teams')
+        if (res.ok) {
+          const data = await res.json()
+          setTeams(Array.isArray(data) ? data : [])
+        }
+      } catch (error) {
+        console.error('Error fetching teams:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchTeams()
   }, [])
 
   const filteredTeams = teams.filter((team) => {
@@ -61,14 +71,16 @@ export default function FindTeamsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
         <Link
           href="/"
-          className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+          className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate"
         >
           HackConnect
         </Link>
-        <div className="flex gap-6">
+        <div className="flex items-center gap-2">
+          <HamburgerMenu />
+          <div className="hidden md:flex gap-6">
           <Link href="/hackathons" className="text-gray-300 hover:text-blue-400">
             Explore
           </Link>
@@ -78,6 +90,7 @@ export default function FindTeamsPage() {
           <Link href="/profile" className="text-gray-300 hover:text-blue-400">
             Profile
           </Link>
+          </div>
         </div>
       </nav>
 

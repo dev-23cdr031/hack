@@ -11,26 +11,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, LogIn, ArrowLeft, Mail, Lock, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
+import { isAdminEmail } from "@/lib/admin"
 
 export default function LoginPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    userType: ""
   })
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
-  
-  // Get user type from URL query parameter
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const type = params.get('type')
-    if (type) {
-      setFormData(prev => ({ ...prev, userType: type }))
-    }
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,42 +49,77 @@ export default function LoginPage() {
     }
 
     try {
-      // Call login API
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          userType: formData.userType || "student", // Default to student if not specified
-        }),
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
       })
 
-      const data = await response.json()
+      if (signInError) throw signInError
+      if (!data.user) throw new Error("Login failed")
 
-      if (!response.ok) {
-        setError(data.error || "Login failed")
-        setLoading(false)
-        return
+      const { data: existingProfile, error: existingProfileError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", data.user.id)
+        .maybeSingle()
+
+      if (existingProfileError && existingProfileError.code !== "PGRST116") {
+        throw existingProfileError
       }
 
-      if (data.success) {
-        // Store user data in localStorage
-        localStorage.setItem("user", JSON.stringify(data.user))
-        localStorage.setItem("userId", data.user.id)
-        localStorage.setItem("isAuthenticated", "true")
-        localStorage.setItem("userType", formData.userType || "student")
+      if (!existingProfile) {
+        const { error: upsertError } = await supabase.from("users").insert({
+          id: data.user.id,
+          email: data.user.email || "",
+          name: data.user.user_metadata?.full_name || data.user.email?.split("@")[0] || "User",
+          bio: data.user.user_metadata?.bio || "New HackConnect user",
+          title: data.user.user_metadata?.title || "Developer",
+          skills: Array.isArray(data.user.user_metadata?.skills) ? data.user.user_metadata.skills : ["JavaScript", "React"],
+          avatar_url: data.user.user_metadata?.avatar_url || "/placeholder-user.jpg",
+          location: data.user.user_metadata?.location || null,
+          experience_level: data.user.user_metadata?.experience_level || data.user.user_metadata?.role || "beginner",
+          role: data.user.user_metadata?.role || "student",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
 
-        // Redirect to profile page so the account setup is visible immediately
-        router.push("/profile")
-      } else {
-        setError(data.error || "Login failed")
+        if (upsertError) {
+          console.error("Failed to create user profile row:", upsertError)
+        }
       }
-    } catch (error) {
+
+      const currentUser = {
+        id: data.user.id,
+        email: data.user.email || "",
+        name: data.user.user_metadata?.full_name || data.user.email?.split("@")[0] || "User",
+        bio: data.user.user_metadata?.bio || "",
+        title: data.user.user_metadata?.title || "Developer",
+        skills: Array.isArray(data.user.user_metadata?.skills) ? data.user.user_metadata.skills : [],
+        avatar_url: data.user.user_metadata?.avatar_url || "/placeholder-user.jpg",
+        location: data.user.user_metadata?.location || "",
+        experience_level: data.user.user_metadata?.experience_level || "beginner",
+        role: data.user.user_metadata?.role || "student",
+      }
+
+      localStorage.setItem("user", JSON.stringify(currentUser))
+      localStorage.setItem("userId", data.user.id)
+      localStorage.setItem("isAuthenticated", "true")
+      localStorage.setItem("userType", currentUser.role || "student")
+
+      const userIsAdmin = isAdminEmail(data.user.email)
+      router.push(userIsAdmin ? "/admin" : "/profile")
+    } catch (error: any) {
       console.error("Login error:", error)
-      setError("Network error. Please try again.")
+      // Show actual Supabase error messages instead of generic network error
+      if (error.message.includes("Invalid login credentials")) {
+        setError("Invalid email or password. Please check your credentials and try again.")
+      } else if (error.message.includes("Email not confirmed")) {
+        setError("Please verify your email address before logging in.")
+      } else if (error.message.includes("Rate limit")) {
+        setError("Too many login attempts. Please try again later.")
+      } else {
+        setError(error.message || "Login failed. Please try again.")
+      }
     } finally {
       setLoading(false)
     }
@@ -104,7 +131,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#020817] flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
@@ -134,23 +161,6 @@ export default function LoginPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-
-              {/* Demo credentials info */}
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                <p className="text-blue-400 text-sm font-medium mb-2">Demo Credentials:</p>
-                {formData.userType === 'student' && (
-                  <>
-                    <p className="text-blue-300 text-xs">Email: student@hackconnect.dev</p>
-                    <p className="text-blue-300 text-xs">Password: student123</p>
-                  </>
-                )}
-                {!formData.userType && (
-                  <>
-                    <p className="text-blue-300 text-xs">Email: demo@hackconnect.dev</p>
-                    <p className="text-blue-300 text-xs">Password: demo123</p>
-                  </>
-                )}
-              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-white flex items-center gap-2">

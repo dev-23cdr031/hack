@@ -139,7 +139,7 @@ export default function PaymentModal({ isOpen, onClose, planType, planPrice, pla
   if (paymentSuccess) {
     return (
       <Dialog open={isOpen} onOpenChange={resetModal}>
-        <DialogContent className="sm:max-w-md bg-slate-800 border-slate-700">
+        <DialogContent className="w-full sm:max-w-md bg-slate-800 border-slate-700">
           <div className="text-center py-6">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h3 className="text-2xl font-bold text-white mb-2">Payment Successful!</h3>
@@ -159,7 +159,7 @@ export default function PaymentModal({ isOpen, onClose, planType, planPrice, pla
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl bg-slate-800 border-slate-700">
+      <DialogContent className="w-full sm:max-w-2xl bg-slate-800 border-slate-700 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-white text-2xl">Complete Your Purchase</DialogTitle>
           <Button
@@ -201,7 +201,7 @@ export default function PaymentModal({ isOpen, onClose, planType, planPrice, pla
           </div>
         )}
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Plan Summary */}
           <div>
             <h3 className="text-lg font-semibold text-white mb-4">Plan Summary</h3>

@@ -138,17 +138,17 @@ export default function ManageTeamsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <HamburgerMenu />
           <Link
             href="/"
-            className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+            className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate"
           >
             HackConnect
           </Link>
         </div>
-        <div className="flex gap-6">
+        <div className="hidden lg:flex gap-4 xl:gap-6">
           <Link href="/" className="text-gray-300 hover:text-blue-400 flex items-center gap-2 transition-colors">
             <Home className="w-4 h-4" />
             Home

@@ -33,6 +33,7 @@ import {
   Smile,
   Camera,
   FileText,
+  ArrowLeft,
   Check,
   CheckCheck,
   Lock,
@@ -104,6 +105,8 @@ interface Conversation {
     id: string
     name: string
     avatar_url?: string
+    bio?: string
+    title?: string
     status: "online" | "offline" | "away"
   }[]
 }
@@ -123,6 +126,7 @@ export default function MessagesPage() {
   // Core state
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
@@ -131,6 +135,11 @@ export default function MessagesPage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // New chat / user directory
+  const [showNewChat, setShowNewChat] = useState(false)
+  const [userDirectory, setUserDirectory] = useState<any[]>([])
+  const [directorySearch, setDirectorySearch] = useState("")
   
   // Essential features
   const [encryptionEnabled, setEncryptionEnabled] = useState(true)
@@ -229,7 +238,7 @@ export default function MessagesPage() {
     })()
   }, [conversations, selectedConversation])
 
-  // Real WebRTC calling functions
+  // Real WebRTC calling functions with Supabase signaling
   const initializePeerConnection = () => {
     const configuration = {
       iceServers: [
@@ -241,15 +250,33 @@ export default function MessagesPage() {
     const peerConnection = new RTCPeerConnection(configuration)
     
     peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        // In a real app, send this to the other peer via signaling server
+      if (event.candidate && currentUser && callState.participant) {
+        // Send ICE candidate to the other peer via Supabase signaling
         console.log('ICE candidate:', event.candidate)
+        // In production, you would save this to your signaling database
+        fetch('/api/calls/signal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'ice-candidate',
+            target: callState.participant.id,
+            sender: currentUser.id,
+            candidate: event.candidate
+          })
+        }).catch(err => console.error('Error sending ICE candidate:', err))
       }
     }
     
     peerConnection.ontrack = (event) => {
+      console.log('Received remote stream:', event.streams[0])
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = event.streams[0]
+        console.log('Remote video stream attached successfully')
+      }
+      // Also handle audio if it's an audio-only call
+      if (callState.callType === 'audio' && audioRef.current) {
+        audioRef.current.srcObject = event.streams[0]
+        audioRef.current.play().catch(err => console.error('Error playing remote audio:', err))
       }
     }
     
@@ -258,7 +285,9 @@ export default function MessagesPage() {
       if (peerConnection.connectionState === 'connected') {
         setCallState(prev => ({ ...prev, isConnected: true, isConnecting: false }))
         startCallTimer()
-      } else if (peerConnection.connectionState === 'disconnected') {
+        console.log('Call connected successfully!')
+      } else if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
+        console.log('Call disconnected')
         endCall()
       }
     }
@@ -322,19 +351,40 @@ export default function MessagesPage() {
       const offer = await peerConnection.createOffer()
       await peerConnection.setLocalDescription(offer)
       
-      // In a real app, send offer to the other peer via signaling server
+      // Send offer to the other peer via signaling server
       console.log('Call offer created:', offer)
       
-      // Simulate call connection after 3 seconds for demo
-      setTimeout(() => {
-        setCallState(prev => ({ 
-          ...prev, 
-          isConnected: true, 
-          isConnecting: false,
-          callQuality: 'excellent'
-        }))
-        startCallTimer()
-      }, 3000)
+      try {
+        await fetch('/api/calls/signal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'offer',
+            target: participant.id,
+            sender: currentUser.id,
+            sdp: peerConnection.localDescription,
+            callType: type,
+            participant: {
+              id: currentUser.id,
+              name: currentUser.name,
+              avatar_url: currentUser.avatar_url
+            }
+          })
+        })
+        console.log('Offer sent to signaling server')
+      } catch (error) {
+        console.error('Error sending offer:', error)
+        // Fallback to simulated connection for demo purposes if signaling fails
+        setTimeout(() => {
+          setCallState(prev => ({ 
+            ...prev, 
+            isConnected: true, 
+            isConnecting: false,
+            callQuality: 'excellent'
+          }))
+          startCallTimer()
+        }, 3000)
+      }
       
     } catch (error) {
       console.error('Error starting call:', error)
@@ -682,24 +732,34 @@ export default function MessagesPage() {
     playRingtone()
   }
 
-  // Get current user from localStorage or use mock data
+  // Get current user from localStorage
   useEffect(() => {
     const userData = localStorage.getItem('user')
     if (userData) {
       const user = JSON.parse(userData)
       setCurrentUser(user)
       fetchConversations(user.id)
-    } else {
-      // Use mock user data for demo with proper UUID
-      const mockUser = {
-        id: '550e8400-e29b-41d4-a716-446655440000',
-        name: 'You',
-        email: 'you@hackconnect.com',
-        avatar_url: '/hackconnect-logo.png'
+
+      // Open a direct conversation with a specific user (e.g. from the public profile page)
+      const urlParams = new URLSearchParams(window.location.search)
+      const targetUserId = urlParams.get('user')
+      if (targetUserId && targetUserId !== user.id) {
+        openDirectChat(user.id, targetUserId)
       }
-      setCurrentUser(mockUser)
-      localStorage.setItem('user', JSON.stringify(mockUser))
-      fetchConversations(mockUser.id)
+
+      // Load the user directory so people can start new chats
+      ;(async () => {
+        try {
+          const res = await fetch('/api/users?limit=200')
+          const data = await res.json()
+          setUserDirectory(Array.isArray(data) ? data : [])
+        } catch (err) {
+          console.error('Error loading user directory:', err)
+        }
+      })()
+    } else {
+      // Redirect to login if not authenticated
+      window.location.href = '/auth/login'
     }
   }, [])
 
@@ -749,31 +809,21 @@ export default function MessagesPage() {
   // Fetch conversations for the current user
   const fetchConversations = async (userId: string) => {
     try {
-      console.log('Fetching conversations for user:', userId)
       const response = await fetch(`/api/conversations?user_id=${userId}`)
 
       if (!response.ok) {
-        console.log('API failed, using demo data as fallback')
-        setConversations(demoConversations)
+        setConversations([])
         setError(null)
         setLoading(false)
         return
       }
 
       const data = await response.json()
-      console.log('Conversations fetched:', data.length)
-
-      if (data.length === 0) {
-        console.log('No conversations found, using demo data')
-        setConversations(demoConversations)
-      } else {
-        setConversations(data)
-      }
+      setConversations(Array.isArray(data) ? data : [])
       setError(null)
     } catch (err) {
       console.error('Error fetching conversations:', err)
-      console.log('Using demo data as fallback')
-      setConversations(demoConversations)
+      setConversations([])
       setError(null)
     } finally {
       setLoading(false)
@@ -781,15 +831,13 @@ export default function MessagesPage() {
   }
 
   // Fetch messages for a specific conversation
-  const fetchMessages = async (conversationId: string) => {
+  const fetchMessages = async (conversationId: string, userId?: string) => {
     try {
-      console.log('Fetching messages for conversation:', conversationId)
-      const response = await fetch(`/api/messages?conversation_id=${conversationId}`)
+      const activeUserId = userId || currentUser?.id || ''
+      const response = await fetch(`/api/messages?conversation_id=${conversationId}${activeUserId ? `&user_id=${activeUserId}` : ''}`)
 
       if (!response.ok) {
-        console.log('API failed, using demo messages as fallback')
-        const demoMsgs = demoMessages[conversationId] || []
-        setMessages(demoMsgs)
+        setMessages([])
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
         }, 100)
@@ -797,12 +845,9 @@ export default function MessagesPage() {
       }
 
       const data = await response.json()
-      console.log('Messages fetched:', data.length)
 
       if (data.length === 0) {
-        console.log('No messages found, using demo messages')
-        const demoMsgs = demoMessages[conversationId] || []
-        setMessages(demoMsgs)
+        setMessages([])
       } else {
         // Transform the data to match our Message interface
         const transformedMessages: Message[] = data.map((msg: any) => ({
@@ -829,9 +874,7 @@ export default function MessagesPage() {
       }, 100)
     } catch (err) {
       console.error('Error fetching messages:', err)
-      console.log('Using demo messages as fallback')
-      const demoMsgs = demoMessages[conversationId] || []
-      setMessages(demoMsgs)
+      setMessages([])
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
       }, 100)
@@ -861,17 +904,10 @@ export default function MessagesPage() {
       let newMsg: Message
 
       if (!response.ok) {
-        console.log('API failed, creating mock message')
-        // Create a mock message when API fails
-        newMsg = {
-          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          sender_id: currentUser.id,
-          sender_name: currentUser.name || 'You',
-          sender_avatar: currentUser.avatar_url || '',
-          content: newMessage.trim(),
-          timestamp: new Date().toISOString(),
-          type: 'text'
-        }
+        // Show the error message from the API (e.g., server error)
+        const errorData = await response.json().catch(() => null)
+        alert(errorData?.error || 'Failed to send message. Please try again.')
+        return
       } else {
         const sentMessage = await response.json()
         console.log('Message sent:', sentMessage.id)
@@ -905,23 +941,7 @@ export default function MessagesPage() {
 
     } catch (err) {
       console.error('Error sending message:', err)
-      // Still create a mock message even if there's an error
-      const mockMsg: Message = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        sender_id: currentUser.id,
-        sender_name: currentUser.name || 'You',
-        sender_avatar: currentUser.avatar_url || '',
-        content: newMessage.trim(),
-        timestamp: new Date().toISOString(),
-        type: 'text'
-      }
-
-      setMessages(prev => [...prev, mockMsg])
-      setNewMessage('')
-
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-      }, 100)
+      alert('Failed to send message. Please try again.')
     } finally {
       setSendingMessage(false)
     }
@@ -946,7 +966,43 @@ export default function MessagesPage() {
   // Handle conversation selection
   const handleConversationSelect = (conversation: Conversation) => {
     setSelectedConversation(conversation)
+    setMobileView('chat')
     fetchMessages(conversation.id)
+  }
+
+  // Open (or create) a direct conversation with a specific user
+  const openDirectChat = async (currentUserId: string, targetUserId: string) => {
+    try {
+      const res = await fetch(`/api/users/${targetUserId}`)
+      if (!res.ok) return
+      const targetUser = await res.json()
+      if (!targetUser?.id) return
+
+      const conv: Conversation = {
+        id: `direct-${targetUser.id}`,
+        name: targetUser.name || 'User',
+        type: 'direct',
+        avatar_url: targetUser.avatar_url || '',
+        last_message: '',
+        last_message_time: '',
+        unread_count: 0,
+        participants: [{
+          id: targetUser.id,
+          name: targetUser.name || 'User',
+          avatar_url: targetUser.avatar_url || '',
+          bio: targetUser.bio,
+          title: targetUser.title,
+          status: 'online'
+        }]
+      }
+
+      setConversations(prev => prev.some(c => c.id === conv.id) ? prev : [conv, ...prev])
+      setSelectedConversation(conv)
+      setMobileView('chat')
+      fetchMessages(conv.id, currentUserId)
+    } catch (err) {
+      console.error('Error opening direct chat:', err)
+    }
   }
 
   // Dropdown menu handlers
@@ -980,400 +1036,7 @@ export default function MessagesPage() {
     // TODO: Implement report functionality
   }
 
-  // Updated Demo data - Divyadharshini and Anusree REMOVED
-  const demoConversations: Conversation[] = [
-    {
-      id: "1",
-      name: "AI Innovators Team",
-      type: "team",
-      avatar_url: "/team-collaboration.png",
-      last_message: "Great work on the ML model! Ready for tomorrow's presentation?",
-      last_message_time: "2024-02-15T14:30:00Z",
-      unread_count: 3,
-      participants: [
-        { id: "1", name: "Dev Dharrshan", avatar_url: "/team/dev-dharrshan.jpg", status: "online" },
-        { id: "2", name: "Anusree", avatar_url: "/team/anusree.jpg", status: "online" },
-        { id: "3", name: "Bharani", avatar_url: "/team/bharani.jpg", status: "away" },
-      ],
-    },
-    {
-      id: "2",
-      name: "Dev Dharrshan",
-      type: "direct",
-      avatar_url: "/team/dev-dharrshan.jpg",
-      last_message: "🚀 Just pushed the new React components! The performance improvements are incredible - 40% faster rendering!",
-      last_message_time: "2024-10-05T17:45:00Z",
-      unread_count: 3,
-      participants: [
-        { id: "7", name: "Dev Dharrshan", avatar_url: "/team/dev-dharrshan.jpg", status: "online" },
-      ],
-    },
-    {
-      id: "3",
-      name: "Divyadharshini",
-      type: "direct",
-      avatar_url: "/team/divya-dharshini.jpg",
-      last_message: "🎨 Finished the new dashboard mockups! The color scheme and animations look stunning. Want to review?",
-      last_message_time: "2024-10-05T17:30:00Z",
-      unread_count: 2,
-      participants: [
-        { id: "8", name: "Divyadharshini", avatar_url: "/team/divya-dharshini.jpg", status: "online" },
-      ],
-    },
-    {
-      id: "4",
-      name: "Divakar",
-      type: "direct",
-      avatar_url: "/team/divakar.jpg",
-      last_message: "⚡ API endpoints are live! Added JWT authentication and rate limiting. Ready for integration testing.",
-      last_message_time: "2024-10-05T17:15:00Z",
-      unread_count: 1,
-      participants: [
-        { id: "9", name: "Divakar", avatar_url: "/team/divakar.jpg", status: "away" },
-      ],
-    },
-    {
-      id: "5",
-      name: "Anusree D",
-      type: "direct",
-      avatar_url: "/team/anusree.jpg",
-      last_message: "🧪 Test coverage is now at 95%! All critical user flows are automated. QA pipeline is solid!",
-      last_message_time: "2024-10-05T17:00:00Z",
-      unread_count: 2,
-      participants: [
-        { id: "10", name: "Anusree D", avatar_url: "/team/anusree.jpg", status: "online" },
-      ],
-    },
-    {
-      id: "6",
-      name: "Hemapriya",
-      type: "direct",
-      avatar_url: "/team/hemapriya.jpg",
-      last_message: "📚 Updated all project docs with API references and deployment guides. Everything is well-documented now!",
-      last_message_time: "2024-10-05T16:45:00Z",
-      unread_count: 1,
-      participants: [
-        { id: "11", name: "Hemapriya", avatar_url: "/team/hemapriya.jpg", status: "online" },
-      ],
-    },
-    {
-      id: "7",
-      name: "Bharani",
-      type: "direct",
-      avatar_url: "/team/bharani.jpg",
-      last_message: "🚀 CI/CD pipeline is optimized! Auto-deployment with rollback features. Production-ready infrastructure!",
-      last_message_time: "2024-10-05T16:30:00Z",
-      unread_count: 1,
-      participants: [
-        { id: "12", name: "Bharani", avatar_url: "/team/bharani.jpg", status: "away" },
-      ],
-    },
-    {
-      id: "8",
-      name: "Green Tech Hackathon",
-      type: "hackathon",
-      avatar_url: "/hackconnect-logo.png",
-      last_message: "Welcome to the Green Tech Sustainability Hack! Check out the resources.",
-      last_message_time: "2024-02-15T10:00:00Z",
-      unread_count: 0,
-      participants: [
-        { id: "5", name: "HackConnect Team", avatar_url: "/hackconnect-logo.png", status: "online" },
-      ],
-    },
-  ]
-
-  const demoMessages: { [key: string]: Message[] } = {
-    "1": [
-      {
-        id: "1",
-        sender_id: "1",
-        sender_name: "Dev Dharrshan",
-        sender_avatar: "/team/dev-dharrshan.jpg",
-        content: "Hey team! I've finished the initial model training. The accuracy is looking promising at 94%!",
-        timestamp: "2024-02-15T10:00:00Z",
-        type: "text",
-      },
-      {
-        id: "2",
-        sender_id: "2",
-        sender_name: "Anusree",
-        sender_avatar: "/team/anusree.jpg",
-        content:
-          "That's amazing! I've been working on the data preprocessing pipeline. Should have it ready by tonight.",
-        timestamp: "2024-02-15T10:15:00Z",
-        type: "text",
-      },
-      {
-        id: "3",
-        sender_id: "3",
-        sender_name: "Bharani",
-        sender_avatar: "/team/bharani.jpg",
-        content:
-          "Perfect timing! I've created the visualization dashboard. We can integrate everything tomorrow morning.",
-        timestamp: "2024-02-15T11:30:00Z",
-        type: "text",
-      },
-      {
-        id: "4",
-        sender_id: "1",
-        sender_name: "Dev Dharrshan",
-        sender_avatar: "/team/dev-dharrshan.jpg",
-        content: "Great work on the ML model! Ready for tomorrow's presentation?",
-        timestamp: "2024-02-15T14:30:00Z",
-        type: "text",
-      },
-    ],
-    "2": [
-      {
-        id: "7",
-        sender_id: "7",
-        sender_name: "Dev Dharrshan",
-        sender_avatar: "/team/dev-dharrshan.jpg",
-        content: "Hey! Just finished optimizing the React components. The new hooks are working beautifully! 🚀",
-        timestamp: "2024-10-05T16:30:00Z",
-        type: "text",
-      },
-      {
-        id: "8",
-        sender_id: "current_user",
-        sender_name: "You",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "That's awesome! I'd love to see the performance improvements.",
-        timestamp: "2024-10-05T16:45:00Z",
-        type: "text",
-      },
-      {
-        id: "9",
-        sender_id: "7",
-        sender_name: "Dev Dharrshan",
-        sender_avatar: "/team/dev-dharrshan.jpg",
-        content: "The rendering is 40% faster now! Also added lazy loading for better UX. Want to pair program tomorrow?",
-        timestamp: "2024-10-05T17:15:00Z",
-        type: "text",
-      },
-      {
-        id: "dev_new_1",
-        sender_id: "7",
-        sender_name: "Dev Dharrshan",
-        sender_avatar: "/team/dev-dharrshan.jpg",
-        content: "🚀 Just pushed the new React components! The performance improvements are incredible - 40% faster rendering!",
-        timestamp: "2024-10-05T17:45:00Z",
-        type: "text",
-      },
-    ],
-    "3": [
-      {
-        id: "10",
-        sender_id: "8",
-        sender_name: "Divyadharshini",
-        sender_avatar: "/team/divya-dharshini.jpg",
-        content: "Working on the new dashboard design! The color palette and animations are looking stunning 🎨",
-        timestamp: "2024-10-05T16:00:00Z",
-        type: "text",
-      },
-      {
-        id: "11",
-        sender_id: "current_user",
-        sender_name: "You",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "Can't wait to see it! Your designs always blow me away.",
-        timestamp: "2024-10-05T16:15:00Z",
-        type: "text",
-      },
-      {
-        id: "12",
-        sender_id: "8",
-        sender_name: "Divyadharshini",
-        sender_avatar: "/team/divya-dharshini.jpg",
-        content: "Added micro-interactions and smooth transitions. The user experience flow is perfect now!",
-        timestamp: "2024-10-05T17:00:00Z",
-        type: "text",
-      },
-      {
-        id: "divya_new_1",
-        sender_id: "8",
-        sender_name: "Divyadharshini",
-        sender_avatar: "/team/divya-dharshini.jpg",
-        content: "🎨 Finished the new dashboard mockups! The color scheme and animations look stunning. Want to review?",
-        timestamp: "2024-10-05T17:30:00Z",
-        type: "text",
-      },
-    ],
-    "4": [
-      {
-        id: "13",
-        sender_id: "9",
-        sender_name: "Divakar",
-        sender_avatar: "/team/divakar.jpg",
-        content: "Backend API is getting solid! Added JWT authentication and implemented rate limiting ⚡",
-        timestamp: "2024-10-05T15:30:00Z",
-        type: "text",
-      },
-      {
-        id: "14",
-        sender_id: "current_user",
-        sender_name: "You",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "Perfect! Security is so important. How's the performance looking?",
-        timestamp: "2024-10-05T16:00:00Z",
-        type: "text",
-      },
-      {
-        id: "15",
-        sender_id: "9",
-        sender_name: "Divakar",
-        sender_avatar: "/team/divakar.jpg",
-        content: "Database queries are 60% faster! Added Redis caching and connection pooling.",
-        timestamp: "2024-10-05T16:45:00Z",
-        type: "text",
-      },
-      {
-        id: "divakar_new_1",
-        sender_id: "9",
-        sender_name: "Divakar",
-        sender_avatar: "/team/divakar.jpg",
-        content: "⚡ API endpoints are live! Added JWT authentication and rate limiting. Ready for integration testing.",
-        timestamp: "2024-10-05T17:15:00Z",
-        type: "text",
-      },
-    ],
-    "5": [
-      {
-        id: "16",
-        sender_id: "10",
-        sender_name: "Anusree D",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "Setting up automated testing pipeline! Jest, Cypress, and Playwright all configured 🧪",
-        timestamp: "2024-10-05T15:00:00Z",
-        type: "text",
-      },
-      {
-        id: "17",
-        sender_id: "current_user",
-        sender_name: "You",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "Amazing! That's going to save us so much time in the long run.",
-        timestamp: "2024-10-05T15:30:00Z",
-        type: "text",
-      },
-      {
-        id: "18",
-        sender_id: "10",
-        sender_name: "Anusree D",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "Unit tests, integration tests, and E2E tests all passing! Coverage is at 92%.",
-        timestamp: "2024-10-05T16:30:00Z",
-        type: "text",
-      },
-      {
-        id: "anusree_new_1",
-        sender_id: "10",
-        sender_name: "Anusree D",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "🧪 Test coverage is now at 95%! All critical user flows are automated. QA pipeline is solid!",
-        timestamp: "2024-10-05T17:00:00Z",
-        type: "text",
-      },
-    ],
-    "6": [
-      {
-        id: "19",
-        sender_id: "11",
-        sender_name: "Hemapriya",
-        sender_avatar: "/team/hemapriya.jpg",
-        content: "Working on comprehensive documentation! API docs, user guides, and deployment instructions 📚",
-        timestamp: "2024-10-05T14:30:00Z",
-        type: "text",
-      },
-      {
-        id: "20",
-        sender_id: "current_user",
-        sender_name: "You",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "Your documentation is always so thorough and clear. Thank you!",
-        timestamp: "2024-10-05T15:00:00Z",
-        type: "text",
-      },
-      {
-        id: "21",
-        sender_id: "11",
-        sender_name: "Hemapriya",
-        sender_avatar: "/team/hemapriya.jpg",
-        content: "Added interactive examples and code snippets. Everything is searchable now!",
-        timestamp: "2024-10-05T16:15:00Z",
-        type: "text",
-      },
-      {
-        id: "hema_new_1",
-        sender_id: "11",
-        sender_name: "Hemapriya",
-        sender_avatar: "/team/hemapriya.jpg",
-        content: "📚 Updated all project docs with API references and deployment guides. Everything is well-documented now!",
-        timestamp: "2024-10-05T16:45:00Z",
-        type: "text",
-      },
-    ],
-    "7": [
-      {
-        id: "22",
-        sender_id: "12",
-        sender_name: "Bharani",
-        sender_avatar: "/team/bharani.jpg",
-        content: "DevOps pipeline is looking great! Docker containers, Kubernetes, and auto-scaling configured 🚀",
-        timestamp: "2024-10-05T14:00:00Z",
-        type: "text",
-      },
-      {
-        id: "23",
-        sender_id: "current_user",
-        sender_name: "You",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "Incredible work! The infrastructure sounds bulletproof.",
-        timestamp: "2024-10-05T14:30:00Z",
-        type: "text",
-      },
-      {
-        id: "24",
-        sender_id: "12",
-        sender_name: "Bharani",
-        sender_avatar: "/team/bharani.jpg",
-        content: "Added monitoring, logging, and automated rollback features. Zero-downtime deployments ready!",
-        timestamp: "2024-10-05T15:45:00Z",
-        type: "text",
-      },
-      {
-        id: "bharani_new_1",
-        sender_id: "12",
-        sender_name: "Bharani",
-        sender_avatar: "/team/bharani.jpg",
-        content: "🚀 CI/CD pipeline is optimized! Auto-deployment with rollback features. Production-ready infrastructure!",
-        timestamp: "2024-10-05T16:30:00Z",
-        type: "text",
-      },
-    ],
-    "8": [
-      {
-        id: "25",
-        sender_id: "5",
-        sender_name: "HackConnect Team",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "Welcome to the Green Tech Sustainability Hack! We're excited to have you join us for this amazing event.",
-        timestamp: "2024-02-15T09:30:00Z",
-        type: "text",
-      },
-      {
-        id: "26",
-        sender_id: "5",
-        sender_name: "HackConnect Team",
-        sender_avatar: "/hackconnect-logo.png",
-        content: "Welcome to the Green Tech Sustainability Hack! Check out the resources.",
-        timestamp: "2024-02-15T10:00:00Z",
-        type: "text",
-      },
-    ],
-  }
-
-  // Demo data initialization removed - now using real API data with fallback
+  // Demo data removed - using real API data only
 
   useEffect(() => {
     scrollToBottom()
@@ -1510,22 +1173,15 @@ export default function MessagesPage() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]"></div>
       
       {/* Revolutionary Navigation */}
-      <nav className="flex justify-between items-center p-4 md:px-8 bg-black/20 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50 shadow-2xl">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="md:hidden">
-            <Menu className="w-5 h-5" />
-          </Button>
-          <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-pulse">
+      <nav className="flex justify-between items-center gap-2 p-3 md:px-8 bg-black/20 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50 shadow-2xl">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <Link href="/" className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent truncate">
             HackConnect
           </Link>
-          <Badge className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold px-3 py-1 animate-bounce">
-            <Crown className="w-3 h-3 mr-1" />
-            PREMIUM
-          </Badge>
         </div>
         
-        {/* Status Indicators */}
-        <div className="flex items-center gap-4">
+        {/* Status Indicators (hidden on very small screens) */}
+        <div className="hidden lg:flex items-center gap-4">
           <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1 rounded-full">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
             <span className="text-xs text-green-400">Online</span>
@@ -1541,34 +1197,48 @@ export default function MessagesPage() {
         </div>
 
         {/* Advanced Navigation */}
-        <div className="flex gap-4">
+        <div className="hidden md:flex gap-4">
           <Link href="/" className="text-gray-300 hover:text-blue-400 flex items-center gap-2 transition-all duration-300 hover:scale-110">
             <Home className="w-4 h-4" />
-            <span className="hidden md:block">Home</span>
+            <span className="hidden xl:block">Home</span>
           </Link>
           <Link href="/hackathons" className="text-gray-300 hover:text-purple-400 flex items-center gap-2 transition-all duration-300 hover:scale-110">
             <Compass className="w-4 h-4" />
-            <span className="hidden md:block">Explore</span>
+            <span className="hidden xl:block">Explore</span>
           </Link>
           <Link href="/teams" className="text-gray-300 hover:text-green-400 flex items-center gap-2 transition-all duration-300 hover:scale-110">
             <Users className="w-4 h-4" />
-            <span className="hidden md:block">Teams</span>
+            <span className="hidden xl:block">Teams</span>
           </Link>
           <Link href="/messages" className="text-blue-400 font-medium flex items-center gap-2 bg-blue-500/20 px-3 py-2 rounded-lg backdrop-blur-sm">
             <MessageCircle className="w-4 h-4" />
-            <span className="hidden md:block">Messages</span>
+            <span className="hidden xl:block">Messages</span>
             <Badge className="bg-red-500 text-white text-xs px-2 py-1 animate-pulse">3</Badge>
           </Link>
           <Link href="/profile" className="text-gray-300 hover:text-pink-400 flex items-center gap-2 transition-all duration-300 hover:scale-110">
             <User className="w-4 h-4" />
-            <span className="hidden md:block">Profile</span>
+            <span className="hidden xl:block">Profile</span>
+          </Link>
+        </div>
+
+        {/* Mobile nav */}
+        <div className="md:hidden flex items-center gap-1">
+          <Link href="/" className="text-gray-300 hover:text-blue-400 p-2">
+            <Home className="w-5 h-5" />
+          </Link>
+          <Link href="/messages" aria-label="Messages" className="text-blue-400 bg-blue-500/20 p-2 rounded-lg relative">
+            <MessageCircle className="w-5 h-5" />
+            <Badge className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[1rem]">3</Badge>
+          </Link>
+          <Link href="/profile" className="text-gray-300 hover:text-pink-400 p-2">
+            <User className="w-5 h-5" />
           </Link>
         </div>
       </nav>
 
-      <div className="flex h-[calc(100vh-80px)] relative">
+      <div className="flex h-[calc(100vh-64px)] md:h-[calc(100vh-80px)] relative">
         {/* Revolutionary Conversations Sidebar */}
-        <div className="w-96 bg-black/30 backdrop-blur-xl border-r border-white/10 flex flex-col shadow-2xl">
+        <div className={`w-full md:w-80 lg:w-96 bg-black/30 backdrop-blur-xl border-r border-white/10 flex-col shadow-2xl ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
           {/* Advanced Search & Controls */}
           <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
             <div className="flex items-center justify-between mb-4">
@@ -1626,7 +1296,7 @@ export default function MessagesPage() {
             
             {/* Quick Actions */}
             <div className="flex gap-2">
-              <Button size="sm" className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl">
+              <Button size="sm" onClick={() => setShowNewChat(true)} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl">
                 <Lightning className="w-3 h-3 mr-1" />
                 New Chat
               </Button>
@@ -1803,13 +1473,17 @@ export default function MessagesPage() {
         </div>
 
         {/* Revolutionary Chat Area */}
-        <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-xl relative">
+        <div className={`flex-col bg-black/20 backdrop-blur-xl relative ${mobileView === 'chat' ? 'flex md:flex' : 'hidden md:flex'} flex-1`}>
           {selectedConversation ? (
             <>
               {/* Advanced Chat Header */}
               <div className="p-4 bg-gradient-to-r from-black/40 to-purple-900/20 backdrop-blur-xl border-b border-white/10 flex items-center justify-between shadow-xl">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
+                <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                  {/* Back to conversation list (mobile) */}
+                  <Button variant="ghost" size="sm" className="md:hidden text-gray-300 p-1 flex-shrink-0" onClick={() => { setMobileView('list'); setSelectedConversation(null) }} aria-label="Back to conversations">
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <div className="relative flex-shrink-0">
                     <Avatar className="w-12 h-12 ring-2 ring-purple-500/50 shadow-lg">
                       <AvatarImage src={selectedConversation.avatar_url || "/placeholder.svg"} />
                       <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white font-bold">
@@ -1835,9 +1509,20 @@ export default function MessagesPage() {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-300">
-                        {selectedConversation.participants.length} participant{selectedConversation.participants.length !== 1 ? "s" : ""}
-                      </span>
+                      {selectedConversation.type === 'direct' && selectedConversation.participants[0]?.title ? (
+                        <>
+                          <span className="text-gray-300">{selectedConversation.participants[0].title}</span>
+                          {selectedConversation.participants[0]?.bio && (
+                            <span className="text-gray-500 italic hidden lg:inline max-w-[220px] truncate">
+                              {selectedConversation.participants[0].bio}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-gray-300">
+                          {selectedConversation.participants.length} participant{selectedConversation.participants.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
                       <span className="text-gray-500">•</span>
                       <span className="text-green-400 animate-pulse">Online</span>
                       <span className="text-gray-500">•</span>
@@ -1848,6 +1533,20 @@ export default function MessagesPage() {
                 
                 {/* Advanced Action Buttons */}
                 <div className="flex items-center gap-2">
+                  {/* View Profile (direct conversations) */}
+                  {selectedConversation?.type === 'direct' && selectedConversation.participants[0] && (
+                    <Link href={`/public/profile/${selectedConversation.participants[0].id}`}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-blue-400 hover:text-white hover:bg-blue-600/20 transition-all duration-300 relative group"
+                      >
+                        <User className="w-4 h-4" />
+                        <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">View Profile</span>
+                      </Button>
+                    </Link>
+                  )}
+
                   {/* Search */}
                   <Button
                     size="sm"
@@ -2369,7 +2068,7 @@ export default function MessagesPage() {
                       Join a Team
                     </Button>
                   </Link>
-                  <Button variant="outline" className="bg-gray-800/50 border-gray-600 text-gray-200 hover:bg-gray-700">
+                  <Button variant="outline" onClick={() => setShowNewChat(true)} className="bg-gray-800/50 border-gray-600 text-gray-200 hover:bg-gray-700">
                     <Plus className="w-4 h-4 mr-2" />
                     Start New Chat
                   </Button>
@@ -2379,6 +2078,90 @@ export default function MessagesPage() {
           )}
         </div>
       </div>
+
+      {/* New Chat Modal */}
+      {showNewChat && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowNewChat(false)}
+        >
+          <div
+            className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Plus className="w-5 h-5 text-green-400" />
+                Start New Chat
+              </h3>
+              <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white" onClick={() => setShowNewChat(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <div className="relative mb-4">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <Input
+                  value={directorySearch}
+                  onChange={e => setDirectorySearch(e.target.value)}
+                  placeholder="Search users by name or email..."
+                  className="bg-gray-800/60 border-gray-700 text-white pl-10"
+                />
+              </div>
+              <div className="max-h-80 overflow-y-auto space-y-2">
+                {(() => {
+                  const others = (userDirectory || []).filter((u: any) => u.id !== currentUser?.id)
+                  const q = directorySearch.trim().toLowerCase()
+                  const matching = q
+                    ? others.filter((u: any) =>
+                        (u.name || '').toLowerCase().includes(q) ||
+                        (u.email || '').toLowerCase().includes(q)
+                      )
+                    : others
+
+                  if (others.length === 0) {
+                    return (
+                      <p className="text-gray-400 text-center py-8">
+                        No other users yet. Invite someone to join HackConnect!
+                      </p>
+                    )
+                  }
+                  if (matching.length === 0) {
+                    return (
+                      <p className="text-gray-400 text-center py-8">No users match your search.</p>
+                    )
+                  }
+                  return matching.map((u: any) => (
+                    <button
+                      key={u.id}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left"
+                      onClick={() => {
+                        if (currentUser) {
+                          openDirectChat(currentUser.id, u.id)
+                        }
+                        setShowNewChat(false)
+                        setDirectorySearch("")
+                      }}
+                    >
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={u.avatar_url || "/placeholder.svg"} />
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white font-bold">
+                          {(u.name || 'U').charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white font-medium truncate">{u.name || 'User'}</p>
+                        <p className="text-xs text-gray-400 truncate">{u.title || u.email || ''}</p>
+                      </div>
+                      <MessageCircle className="w-4 h-4 text-green-400 shrink-0" />
+                    </button>
+                  ))
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Call Modal */}
       {callState.participant && (

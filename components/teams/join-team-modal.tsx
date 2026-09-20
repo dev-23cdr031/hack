@@ -94,7 +94,7 @@ export function JoinTeamModal({ team, isOpen, onClose, onJoin, joining }: JoinTe
   
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[550px] bg-gray-900 border-gray-800 text-white">
+      <DialogContent className="w-full sm:max-w-[550px] bg-gray-900 border-gray-800 text-white">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
             {step === 'rules' && <BookOpen className="w-5 h-5" />}

@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { HamburgerMenu } from "@/components/hamburger-menu"
 
 export default function HelpPage() {
   const [searchTerm, setSearchTerm] = useState("")

@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid md:grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <Link href="/privacy/contact">
               <Card className="bg-slate-800 border-slate-700 hover:bg-slate-750 transition-colors cursor-pointer">
                 <CardContent className="p-6">
@@ -66,7 +66,7 @@ export default function PrivacyPolicy() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
                   <div className="bg-blue-600 p-3 rounded-full w-12 h-12 mx-auto mb-3 flex items-center justify-center">
                     <Eye className="h-6 w-6 text-white" />
@@ -136,7 +136,7 @@ export default function PrivacyPolicy() {
                 <CardTitle className="text-white">How We Use Your Information</CardTitle>
               </CardHeader>
               <CardContent className="text-slate-300 space-y-4">
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <h4 className="font-semibold text-white mb-2">Platform Services</h4>
                     <ul className="list-disc list-inside space-y-1 text-sm">
@@ -168,7 +168,7 @@ export default function PrivacyPolicy() {
                 <p className="text-sm">
                   We do not sell your personal information. We may share your data in these limited circumstances:
                 </p>
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <h4 className="font-semibold text-white mb-2">With Your Consent</h4>
                     <ul className="list-disc list-inside space-y-1 text-sm">
@@ -198,7 +198,7 @@ export default function PrivacyPolicy() {
                 <p className="text-sm">
                   Under applicable privacy laws (GDPR, CCPA, etc.), you have the following rights:
                 </p>
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <div className="flex items-start space-x-3">
                       <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
@@ -245,7 +245,7 @@ export default function PrivacyPolicy() {
               </CardHeader>
               <CardContent className="text-slate-300 space-y-4">
                 <p className="text-sm">We implement comprehensive security measures to protect your data:</p>
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-slate-700 p-4 rounded-lg">
                     <h4 className="font-semibold text-white mb-2">Encryption</h4>
                     <p className="text-sm">End-to-end encryption for data in transit and at rest</p>
@@ -271,7 +271,7 @@ export default function PrivacyPolicy() {
                 <p className="text-sm mb-4">
                   If you have questions about this Privacy Policy or want to exercise your privacy rights, contact us:
                 </p>
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <h4 className="font-semibold text-white mb-2">Privacy Team</h4>
                     <p className="text-sm">Email: privacy@hackconnect.com</p>

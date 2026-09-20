@@ -1,33 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { mockUsers } from "@/app/api/users/mockData"
-
-const demoPasswords = new Set(["demo123", "student123", "password123"])
-const demoAliases = new Set(["demo@hackconnect.dev", "student@hackconnect.dev", "demo@example.com"])
-
-function getMockLoginUser(email: string) {
-  const normalizedEmail = email.toLowerCase().trim()
-
-  return mockUsers.find((user) => user.email.toLowerCase() === normalizedEmail) || null
-}
-
-function createLocalUser(email: string) {
-  const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
-
-  return {
-    id: email.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "demo-user",
-    name,
-    email: email.toLowerCase(),
-    bio: "New HackConnect user",
-    title: "Developer",
-    skills: ["JavaScript", "React"],
-    avatar_url: "/placeholder-user.jpg",
-    github_url: "",
-    linkedin_url: "",
-    portfolio_url: "",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }
-}
+import { createClient } from "@supabase/supabase-js"
+import { isAdminEmail } from "@/lib/admin"
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,37 +12,82 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
     }
 
-    const normalizedEmail = email.toLowerCase().trim()
-    const isDemoAlias = demoAliases.has(normalizedEmail)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    if (isDemoAlias && demoPasswords.has(String(password))) {
-      return NextResponse.json({
-        success: true,
-        user: createLocalUser(normalizedEmail),
-        message: "Login successful",
-      })
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json({ error: "Supabase is not configured" }, { status: 500 })
     }
 
-    if (isDemoAlias) {
-      return NextResponse.json({ error: "Invalid demo password" }, { status: 401 })
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+    // Sign in with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase().trim(),
+      password,
+    })
+
+    if (error) {
+      return NextResponse.json({ error: error.message || "Invalid credentials" }, { status: 401 })
     }
 
-    const demoUser = getMockLoginUser(email)
-    if (demoUser && demoPasswords.has(String(password))) {
-      return NextResponse.json({
-        success: true,
-        user: demoUser,
-        message: "Login successful",
-      })
+    const user = data.user
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 })
     }
 
-    if (demoUser) {
-      return NextResponse.json({ error: "Invalid demo password" }, { status: 401 })
+    const accountEmail = (user.email ?? email)?.trim().toLowerCase()
+    if (!accountEmail) {
+      return NextResponse.json({ error: "A valid email is required for this account" }, { status: 400 })
+    }
+
+    // Check if user is admin
+    const isAdmin = isAdminEmail(accountEmail)
+
+    // Get or create user profile
+    let profile = null
+    const { data: existingProfile, error: profileError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", accountEmail)
+      .single()
+
+    if (!profileError && existingProfile) {
+      profile = existingProfile
+    } else {
+      // Create profile if it doesn't exist
+      const { data: newProfile, error: createError } = await supabase
+        .from("users")
+        .insert({
+          id: user.id,
+          email: accountEmail,
+          name: user.user_metadata?.full_name || accountEmail.split("@")[0] || "User",
+          bio: "New HackConnect user",
+          title: "Developer",
+          skills: ["JavaScript", "React"],
+          avatar_url: "/placeholder-user.jpg",
+        })
+        .select()
+        .single()
+
+      if (!createError && newProfile) {
+        profile = newProfile
+      }
     }
 
     return NextResponse.json({
       success: true,
-      user: createLocalUser(email),
+      user: {
+        id: user.id,
+        email: accountEmail,
+        name: profile?.name || user.user_metadata?.full_name || accountEmail.split("@")[0] || "User",
+        bio: profile?.bio || "New HackConnect user",
+        title: profile?.title || "Developer",
+        skills: profile?.skills || ["JavaScript", "React"],
+        avatar_url: profile?.avatar_url || "/placeholder-user.jpg",
+        isAdmin,
+      },
+      isAdmin,
       message: "Login successful",
     })
   } catch (error) {

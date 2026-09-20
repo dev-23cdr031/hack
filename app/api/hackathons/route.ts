@@ -1,106 +1,180 @@
-import { NextRequest, NextResponse } from 'next/server'
-import type { Hackathon } from '@/lib/types'
-import { mockHackathons } from '@/lib/mock-hackathons'
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+import { createServerSupabaseClient } from "@/lib/supabase"
+import { isAdminEmail } from "@/lib/admin"
 
-// DevPost hackathon scraper
-async function scrapeDevPostHackathons(): Promise<Hackathon[]> {
-  try {
-    return mockHackathons
-  } catch (error) {
-    console.error('Error scraping DevPost hackathons:', error)
-    // Return empty array as fallback
-    return []
-  }
+export const dynamic = 'force-dynamic'
+
+// Global to hold hackathons in memory until they're saved to DB
+declare global {
+  var inMemoryHackathons: any[] | undefined
 }
 
-// Store created hackathons in memory (in production, this would be in a database)
-let createdHackathons: Hackathon[] = []
-let hackathonIdCounter = 4 // Start from 4 since we have devpost-1, devpost-2, devpost-3
+if (!global.inMemoryHackathons) {
+  global.inMemoryHackathons = []
+}
+
+type Hackathon = {
+  id: string
+  title: string
+  description?: string
+  image_url?: string
+  start_date: string
+  end_date: string
+  location?: string
+  type: 'online' | 'in-person' | 'hybrid'
+  format?: string
+  themes?: string[]
+  max_participants?: number
+  current_participants: number
+  status: 'upcoming' | 'ongoing' | 'past'
+  prize_amount?: number
+  skill_level?: string
+  eligibility?: string
+  rules?: any[]
+  schedule?: any[]
+  judges?: any[]
+  sponsors?: any[]
+  faq?: any[]
+  resources?: any[]
+  created_by?: string | null
+  created_at: string
+  updated_at: string
+  creator?: any
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const status = searchParams.get('status')
-    const type = searchParams.get('type')
-    const location = searchParams.get('location')
-    const country = searchParams.get('country')
-    const state = searchParams.get('state')
+    const searchParams = request.nextUrl.searchParams
+    const status = searchParams.get("status")
+    const search = searchParams.get("search")
+    const type = searchParams.get("type")
+    const theme = searchParams.get("theme")
 
-    // Fetch real hackathon data from DevPost
-    let hackathons = await scrapeDevPostHackathons()
+    const supabase = createServerSupabaseClient()
     
-    // Add created hackathons to the list
-    hackathons = [...hackathons, ...createdHackathons]
-
-    // Filter hackathons based on parameters
-    if (status && status !== 'all') {
-      hackathons = hackathons.filter(h => h.status === status)
+    let query = supabase.from('hackathons').select('*')
+    
+    if (search) {
+      query = query.ilike('title', `%${search}%`)
     }
-
     if (type && type !== 'all') {
-      hackathons = hackathons.filter(h => h.type === type)
+      query = query.eq('type', type)
     }
 
-    if (location && location !== 'all') {
-      if (location === 'worldwide') {
-        hackathons = hackathons.filter(h => h.type === 'online')
-      } else {
-        hackathons = hackathons.filter(h => h.type !== 'online')
+    const { data, error } = await query.order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('Supabase fetch error, using in-memory only:', error)
+      // Still return in-memory hackathons even if DB fails
+      return NextResponse.json({
+        hackathons: [...(global.inMemoryHackathons || [])],
+        success: true
+      })
+    }
+
+    // Enrich with creator info
+    let hackathons = data as Hackathon[]
+    try {
+      const creatorIds = [...new Set(data.filter((h: any) => h.created_by).map((h: any) => h.created_by))]
+      if (creatorIds.length > 0) {
+        const { data: users, error: usersError } = await supabase
+          .from('users')
+          .select('id, name, email, avatar_url')
+          .in('id', creatorIds)
+
+        if (!usersError && users) {
+          const userMap = Object.fromEntries(users.map((u: any) => [u.id, u]))
+          hackathons = data.map((h: any) => ({
+            ...h,
+            creator: h.created_by ? userMap[h.created_by] || null : null
+          }))
+        }
       }
+    } catch (e) {
+      console.log('Creator enrichment failed:', e)
     }
 
-    return NextResponse.json({ hackathons })
+    // Combine database hackathons with in-memory ones (in case DB is slow)
+    const combined = [...hackathons, ...(global.inMemoryHackathons || [])]
+    
+    return NextResponse.json({ hackathons: combined, success: true })
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Failed to fetch hackathons' }, { status: 500 })
+    console.error('Server error in hackathons GET, using in-memory:', e)
+    return NextResponse.json({
+      hackathons: [...(global.inMemoryHackathons || [])],
+      success: true
+    })
   }
 }
 
 export async function POST(request: NextRequest) {
+  let body: any
   try {
-    const body = await request.json()
+    body = await request.json().catch(() => null)
     
-    // Generate a unique ID for the new hackathon
-    const newId = `created-${hackathonIdCounter++}`
-    
-    // Create the new hackathon object
-    const newHackathon: Hackathon = {
-      id: newId,
+    if (!body) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    if (!body.title || !body.start_date || !body.end_date) {
+      console.log('Missing required fields:', { title: !!body.title, start_date: !!body.start_date, end_date: !!body.end_date, body })
+      return NextResponse.json({ error: 'Title, start date, and end date are required' }, { status: 400 })
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const authorization = request.headers.get("authorization")
+
+    if (!supabaseUrl || !supabaseAnonKey || !authorization?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authorization } },
+    })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    if (!isAdminEmail(user.email)) {
+      return NextResponse.json({ error: "Only approved admin accounts can create hackathons." }, { status: 403 })
+    }
+
+    const insertData: any = {
       title: body.title,
-      description: body.description || '',
-      image_url: '/placeholder-hackathon.jpg',
+      description: body.description || null,
       start_date: body.start_date,
       end_date: body.end_date,
-      location: body.location || 'Virtual',
+      location: body.location || "Virtual",
       type: body.type || 'online',
-      format: body.format || 'competitive',
-      themes: body.themes || [],
-      max_participants: body.max_participants,
-      current_participants: body.current_participants || 0,
-      status: body.status || 'upcoming',
-      prize_amount: body.prize_amount,
-      skill_level: body.skill_level || 'all-levels',
-      eligibility: body.eligibility || 'Open to all',
-      rules: body.rules || [],
-      schedule: body.schedule || [],
-      judges: body.judges || [],
-      sponsors: body.sponsors || [],
-      faq: body.faq || [],
-      resources: body.resources || [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      max_participants: body.max_participants || null,
+      image_url: body.image_url || null,
+      current_participants: 0,
     }
-    
-    // Add to our in-memory store
-    createdHackathons.push(newHackathon)
-    
-    return NextResponse.json({ 
-      success: true, 
-      hackathon: newHackathon,
-      message: 'Hackathon created successfully' 
+
+    insertData.organizer_id = user.id
+    insertData.created_by = user.id
+    insertData.created_by_email = user.email
+
+    const { data, error } = await supabase
+      .from('hackathons')
+      .insert(insertData)
+      .select('*')
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 403 })
+
+    return NextResponse.json({
+      success: true,
+      hackathon: data,
+      message: 'Hackathon created successfully'
     }, { status: 201 })
-    
+
   } catch (e: any) {
-    console.error('Error creating hackathon:', e)
-    return NextResponse.json({ error: e?.message || 'Failed to create hackathon' }, { status: 500 })
+    console.error('Server error in hackathons POST:', e)
+    return NextResponse.json({ error: e?.message || "Failed to create hackathon" }, { status: 500 })
   }
 }

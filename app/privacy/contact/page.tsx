@@ -91,7 +91,7 @@ export default function ContactPrivacyTeam() {
               </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <Card className="bg-slate-800 border-slate-700">
                 <CardContent className="p-4">
                   <h3 className="font-semibold text-white mb-2">What Happens Next?</h3>
@@ -157,7 +157,7 @@ export default function ContactPrivacyTeam() {
             <p className="text-slate-300 text-lg">Get help with privacy concerns, data requests, or policy questions</p>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Contact Form */}
             <div className="lg:col-span-2">
               <Card className="bg-slate-800 border-slate-700">
@@ -170,7 +170,7 @@ export default function ContactPrivacyTeam() {
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Personal Information */}
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="firstName" className="text-slate-300">
                           First Name *
@@ -197,7 +197,7 @@ export default function ContactPrivacyTeam() {
                       </div>
                     </div>
 
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="email" className="text-slate-300">
                           Email Address *
@@ -226,7 +226,7 @@ export default function ContactPrivacyTeam() {
                     </div>
 
                     {/* Request Details */}
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="requestType" className="text-slate-300">
                           Request Type *

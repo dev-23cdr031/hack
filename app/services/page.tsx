@@ -122,8 +122,8 @@ export default function ServicesPage() {
       <div className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700">
         <div className="container mx-auto px-4 py-12">
           <div className="text-center">
-            <h1 className="text-5xl font-bold text-white mb-4">Our Services</h1>
-            <p className="text-xl text-slate-300 max-w-2xl mx-auto">
+            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">Our Services</h1>
+            <p className="text-lg sm:text-xl text-slate-300 max-w-2xl mx-auto">
               Comprehensive solutions for developers, teams, and organizations to excel in hackathons and beyond
             </p>
           </div>
@@ -132,7 +132,7 @@ export default function ServicesPage() {
 
       <div className="container mx-auto px-4 py-16">
         {/* Services Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
           {services.map((service, index) => (
             <Card key={index} className="bg-slate-800/50 border-slate-700 hover:bg-slate-800/70 transition-all">
               <CardHeader>
@@ -162,7 +162,7 @@ export default function ServicesPage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan, index) => (
             <Card
               key={index}
@@ -209,7 +209,7 @@ export default function ServicesPage() {
         {/* Features Highlight */}
         <div className="mt-20 text-center">
           <h3 className="text-3xl font-bold text-white mb-8">Why Choose HackConnect?</h3>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="bg-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="h-8 w-8 text-white" />

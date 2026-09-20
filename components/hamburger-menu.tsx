@@ -30,12 +30,26 @@ import {
   Video,
   TrendingUp,
   Plus,
+  Fingerprint,
 } from "lucide-react"
 import Link from "next/link"
+import { isAdminEmail } from "@/lib/admin"
 
 export function HamburgerMenu() {
   const [isOpen, setIsOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // Check if the current user is an admin (by email only)
+    try {
+      const raw = localStorage.getItem('user')
+      const user = raw ? JSON.parse(raw) : null
+      setIsAdmin(isAdminEmail(user?.email))
+    } catch {
+      setIsAdmin(false)
+    }
+  }, [])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -56,7 +70,7 @@ export function HamburgerMenu() {
       items: [
         { icon: Home, label: "Home", href: "/", description: "Back to homepage" },
         { icon: Compass, label: "Explore", href: "/hackathons", description: "Discover hackathons" },
-        { icon: Plus, label: "Create Hackathon", href: "/create-hackathon", description: "Host your own hackathon" },
+        ...(isAdmin ? [{ icon: Plus, label: "Create Hackathon", href: "/admin", description: "Create hackathons from the admin dashboard" }] : []),
         { icon: Users, label: "Teams", href: "/teams", description: "Find or create teams" },
         { icon: MessageCircle, label: "Messages", href: "/messages", description: "Chat with teammates" },
         { icon: Calendar, label: "Meetings", href: "/meetings", description: "View all meetings" },
@@ -83,6 +97,7 @@ export function HamburgerMenu() {
         { icon: Zap, label: "Quick Actions", href: "/quick-actions", description: "Shortcuts and tools" },
         { icon: Code, label: "Code Hub", href: "/code-hub", description: "Your code workspace" },
         { icon: Flame, label: "Hack Streak", href: "/hack-streak", description: "Track your daily coding streak" },
+        { icon: Fingerprint, label: "Aadhaar AI", href: "/aadhaar-ai", description: "AI-powered Aadhaar verification" },
       ],
     },
     {
@@ -97,6 +112,7 @@ export function HamburgerMenu() {
     {
       category: "Other",
       items: [
+        ...(isAdmin ? [{ icon: Shield, label: "Admin Dashboard", href: "/admin", description: "Manage hackathons" }] : []),
         { icon: Palette, label: "Themes", href: "/themes", description: "Customize appearance" },
         { icon: Download, label: "Downloads", href: "/downloads", description: "Your downloads" },
         { icon: Shield, label: "Privacy", href: "/privacy", description: "Privacy settings" },
@@ -118,7 +134,7 @@ export function HamburgerMenu() {
       </Button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-80 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-50 max-h-96 overflow-y-auto">
+        <div className="absolute top-full left-0 mt-2 w-[calc(100vw-2rem)] max-w-80 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-50 max-h-[80vh] overflow-y-auto">
           <div className="p-4">
             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Menu className="w-5 h-5 text-blue-400" />

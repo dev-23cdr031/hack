@@ -9,6 +9,9 @@ export interface User {
   github_url?: string
   linkedin_url?: string
   portfolio_url?: string
+  location?: string
+  experience_level?: string
+  role?: string
   created_at: string
   updated_at: string
 }
@@ -23,6 +26,8 @@ export interface Hackathon {
   location?: string
   type: "online" | "in-person" | "hybrid"
   format?: "competitive" | "learning" | "community" | "corporate"
+  created_by?: string
+  creator?: User
   themes: string[]
   max_participants?: number
   current_participants: number
@@ -57,6 +62,11 @@ export interface Team {
   communication_platform?: string
   meeting_schedule?: string
   roles_needed?: string[]
+  // Mentor related fields
+  mentor_id?: string | null
+  mentor_requested_at?: string | null
+  mentor_approved_at?: string | null
+  mentor_status?: "none" | "requested" | "approved" | "rejected"
   created_at: string
   updated_at: string
 }

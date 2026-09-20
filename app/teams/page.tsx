@@ -3,8 +3,12 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Home, Users, MessageCircle, User, Filter, UserPlus, Zap, Compass, Loader2, Globe } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
+import { Search, Plus, Home, Users, MessageCircle, User, Filter, UserPlus, Zap, Compass, Loader2, Globe, X } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { HamburgerMenu } from "@/components/hamburger-menu"
@@ -23,14 +27,153 @@ export default function TeamsPage() {
   const [userRequestStatuses, setUserRequestStatuses] = useState<{ [teamId: string]: string }>({})
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const [myTeams, setMyTeams] = useState<Team[]>([])
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false)
+  const [hackathons, setHackathons] = useState<any[]>([])
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    hackathon_id: "",
+    max_members: "4",
+    skills_needed: [] as string[],
+    project_idea: "",
+    communication_platform: "Discord",
+    meeting_schedule: "",
+    roles_needed: [] as string[],
+  })
+  const [newSkill, setNewSkill] = useState("")
+  const [newRole, setNewRole] = useState("")
+  const [requestingMentorship, setRequestingMentorship] = useState<string | null>(null)
 
-  // Get current user from localStorage
+  // Get current user from localStorage and fetch hackathons
   useEffect(() => {
     const userData = localStorage.getItem('user')
     if (userData) {
       setCurrentUser(JSON.parse(userData))
     }
+    fetchHackathons()
   }, [])
+
+  const fetchHackathons = async () => {
+    try {
+      const response = await fetch('/api/hackathons')
+      const data = await response.json()
+      if (response.ok) {
+        setHackathons(data.hackathons || [])
+      }
+    } catch (err) {
+      console.error('Error fetching hackathons:', err)
+    }
+  }
+
+  const addSkill = () => {
+    if (newSkill.trim() && !formData.skills_needed.includes(newSkill.trim())) {
+      setFormData({
+        ...formData,
+        skills_needed: [...formData.skills_needed, newSkill.trim()],
+      })
+      setNewSkill("")
+    }
+  }
+
+  const removeSkill = (skillToRemove: string) => {
+    setFormData({
+      ...formData,
+      skills_needed: formData.skills_needed.filter((skill) => skill !== skillToRemove),
+    })
+  }
+  
+  const addRole = () => {
+    if (newRole.trim() && !formData.roles_needed.includes(newRole.trim())) {
+      setFormData({
+        ...formData,
+        roles_needed: [...formData.roles_needed, newRole.trim()],
+      })
+      setNewRole("")
+    }
+  }
+
+  const removeRole = (roleToRemove: string) => {
+    setFormData({
+      ...formData,
+      roles_needed: formData.roles_needed.filter((role) => role !== roleToRemove),
+    })
+  }
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      description: "",
+      hackathon_id: "",
+      max_members: "4",
+      skills_needed: [],
+      project_idea: "",
+      communication_platform: "Discord",
+      meeting_schedule: "",
+      roles_needed: [],
+    })
+    setNewSkill("")
+    setNewRole("")
+  }
+
+  const handleCreateTeam = async () => {
+    if (!currentUser) {
+      alert('Please log in to create a team')
+      return
+    }
+
+    if (!formData.name.trim()) {
+      alert('Please enter a team name')
+      return
+    }
+
+    setIsCreatingTeam(true)
+
+    try {
+      const teamData = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        hackathon_id: formData.hackathon_id === 'none' ? null : formData.hackathon_id || null,
+        max_members: parseInt(formData.max_members),
+        skills_needed: formData.skills_needed,
+        project_idea: formData.project_idea.trim(),
+        communication_platform: formData.communication_platform,
+        meeting_schedule: formData.meeting_schedule.trim(),
+        roles_needed: formData.roles_needed,
+        leader_id: currentUser.id,
+        status: 'forming',
+        current_members: 1
+      }
+
+      console.log('Creating team with data:', teamData)
+
+      const response = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(teamData)
+      })
+
+      const responseData = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(responseData.error || "Failed to create team")
+      }
+
+      // Refresh teams list to show the newly created team immediately
+      await fetchTeams()
+      
+      // Close the modal and reset form
+      setIsCreateModalOpen(false)
+      resetForm()
+      alert("Team created successfully! All logged-in users can now see this team.")
+    } catch (error) {
+      console.error('Error creating team:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create team'
+      alert(`Failed to create team: ${errorMessage}`)
+    } finally {
+      setIsCreatingTeam(false)
+    }
+  }
 
   // Fetch pending requests count when user is available
   useEffect(() => {
@@ -109,15 +252,21 @@ export default function TeamsPage() {
       }
 
       console.log('Fetched teams:', data.length)
-      setTeams(data || [])
+      
+      // Use only teams fetched from Supabase - no localStorage
+      const allTeams = data || []
+      setTeams(allTeams)
 
       // Fetch user request statuses if user is logged in
-      if (currentUser && data) {
-        await fetchUserRequestStatuses(data)
+      if (currentUser && deduped) {
+        await fetchUserRequestStatuses(deduped)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load teams")
       console.error("Error fetching teams:", err)
+      
+      // Set empty teams array on error
+      setTeams([])
     } finally {
       setLoading(false)
     }
@@ -145,6 +294,44 @@ export default function TeamsPage() {
       setUserRequestStatuses(statuses)
     } catch (err) {
       console.error('Error fetching user request statuses:', err)
+    }
+  }
+
+  const handleRequestMentor = async (teamId: string) => {
+    if (!currentUser) {
+      alert('Please log in to request to mentor a team')
+      return
+    }
+
+    // Check if current user is a mentor
+    if (currentUser.role !== 'mentor') {
+      alert('Only mentors can offer to mentor teams')
+      return
+    }
+
+    setRequestingMentorship(teamId)
+    
+    try {
+      const response = await fetch(`/api/teams/${encodeURIComponent(teamId)}/request-mentor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mentor_id: currentUser.id
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to submit mentor request')
+      }
+
+      alert('Your mentor request has been submitted! The team leader will review your request.')
+      // Refresh teams to update status
+      await fetchTeams()
+    } catch (error) {
+      console.error('Error submitting mentor request:', error)
+      alert('Failed to submit mentor request. Please try again.')
+    } finally {
+      setRequestingMentorship(null)
     }
   }
 
@@ -206,17 +393,17 @@ export default function TeamsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <HamburgerMenu />
           <Link
             href="/"
-            className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+            className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate"
           >
             HackConnect
           </Link>
         </div>
-        <div className="flex gap-6 items-center">
+        <div className="hidden lg:flex gap-4 xl:gap-6 items-center">
           <Link href="/" className="text-gray-300 hover:text-blue-400 flex items-center gap-2 transition-colors">
             <Home className="w-4 h-4" />
             Home
@@ -247,17 +434,19 @@ export default function TeamsPage() {
             <User className="w-4 h-4" />
             Profile
           </Link>
+        </div>
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <JoinRequestNotification userId={currentUser?.id} />
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <div className="flex items-center gap-3 mb-4">
               <Users className="w-8 h-8 text-purple-400" />
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                 Find Your Team
               </h1>
             </div>
@@ -275,12 +464,19 @@ export default function TeamsPage() {
                 )}
               </Button>
             </Link>
-            <Link href="/teams/create">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Team
-              </Button>
-            </Link>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => {
+                if (!currentUser) {
+                  alert('Please log in to create a team')
+                  return
+                }
+                setIsCreateModalOpen(true)
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Team
+            </Button>
             <Link href="/teams/find">
               <Button variant="outline" className="bg-gray-800/50 border-gray-600 text-gray-200 hover:bg-gray-700">
                 <Search className="w-4 h-4 mr-2" />
@@ -398,6 +594,9 @@ export default function TeamsPage() {
                       onView={(id) => router.push(`/teams/${encodeURIComponent(id)}`)}
                       currentUserId={currentUser?.id}
                       userRequestStatus={userRequestStatuses[team.id] as 'pending' | 'approved' | 'rejected' | null}
+                      isMentor={currentUser?.role === 'mentor'}
+                      onRequestMentor={handleRequestMentor}
+                      isRequestingMentor={requestingMentorship === team.id}
                     />
                   ))}
                 </div>
@@ -472,6 +671,196 @@ export default function TeamsPage() {
           </>
         )}
       </div>
+
+      {/* Create Team Modal */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-900 border-gray-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              Create New Team
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Start building your dream team for the next hackathon
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name" className="text-white">
+                  Team Name *
+                </Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter your team name"
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description" className="text-white">
+                  Description
+                </Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Describe your team's goals and what you're looking to build"
+                  rows={4}
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="hackathon" className="text-white">
+                  Hackathon
+                </Label>
+                <Select
+                  value={formData.hackathon_id}
+                  onValueChange={(value) => setFormData({ ...formData, hackathon_id: value })}
+                >
+                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                    <SelectValue placeholder="Select a hackathon (optional)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700">
+                    <SelectItem value="none">No specific hackathon</SelectItem>
+                    {hackathons.map((hackathon) => (
+                      <SelectItem key={hackathon.id} value={hackathon.id}>
+                        {hackathon.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="max_members" className="text-white">
+                  Maximum Team Size *
+                </Label>
+                <Select
+                  value={formData.max_members}
+                  onValueChange={(value) => setFormData({ ...formData, max_members: value })}
+                >
+                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700">
+                    <SelectItem value="2">2 members</SelectItem>
+                    <SelectItem value="3">3 members</SelectItem>
+                    <SelectItem value="4">4 members</SelectItem>
+                    <SelectItem value="5">5 members</SelectItem>
+                    <SelectItem value="6">6 members</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="project_idea" className="text-white">
+                  Project Idea
+                </Label>
+                <Textarea
+                  id="project_idea"
+                  value={formData.project_idea}
+                  onChange={(e) => setFormData({ ...formData, project_idea: e.target.value })}
+                  placeholder="Describe the project you're planning to build"
+                  rows={3}
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                />
+              </div>
+
+              <div>
+                <Label className="text-white">Skills Needed</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    value={newSkill}
+                    onChange={(e) => setNewSkill(e.target.value)}
+                    placeholder="Add a skill (e.g., React, Python)"
+                    className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
+                  />
+                  <Button type="button" onClick={addSkill} className="bg-blue-600 hover:bg-blue-700">
+                    Add
+                  </Button>
+                </div>
+                {formData.skills_needed.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {formData.skills_needed.map((skill) => (
+                      <Badge key={skill} className="bg-purple-600 text-white flex items-center gap-1">
+                        {skill}
+                        <X 
+                          className="w-3 h-3 cursor-pointer hover:text-red-300" 
+                          onClick={() => removeSkill(skill)}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-white">Roles Needed</Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    value={newRole}
+                    onChange={(e) => setNewRole(e.target.value)}
+                    placeholder="Add a role (e.g., Frontend Dev, Designer)"
+                    className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addRole())}
+                  />
+                  <Button type="button" onClick={addRole} className="bg-blue-600 hover:bg-blue-700">
+                    Add
+                  </Button>
+                </div>
+                {formData.roles_needed.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {formData.roles_needed.map((role) => (
+                      <Badge key={role} className="bg-blue-600 text-white flex items-center gap-1">
+                        {role}
+                        <X 
+                          className="w-3 h-3 cursor-pointer hover:text-red-300" 
+                          onClick={() => removeRole(role)}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-3 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsCreateModalOpen(false)
+                resetForm()
+              }}
+              className="bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
+              disabled={isCreatingTeam}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreateTeam}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={isCreatingTeam}
+            >
+              {isCreatingTeam ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Team'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

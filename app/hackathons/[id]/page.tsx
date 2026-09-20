@@ -23,10 +23,28 @@ import {
   HelpCircle,
   Link as LinkIcon,
   ExternalLink,
-  User
+  User,
+  Edit,
+  Trash2
 } from "lucide-react"
 import type { Hackathon } from "@/lib/types"
 import { HackathonRegistrationForm, RegistrationFormData } from "@/components/hackathon-registration-form"
+
+interface Registration {
+  id: string
+  hackathon_id: string
+  user_id: string
+  joined_at: string
+  full_name?: string
+  email?: string
+  phone?: string
+  city?: string
+  state?: string
+  country?: string
+  occupation?: string
+  organization?: string
+  users?: { id: string; name: string; email: string; avatar_url?: string }
+}
 
 export default function HackathonDetailsPage() {
   const params = useParams() as { id?: string }
@@ -39,6 +57,11 @@ export default function HackathonDetailsPage() {
   const [joining, setJoining] = useState(false)
   const [registered, setRegistered] = useState(false)
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false)
+  const [registrations, setRegistrations] = useState<Registration[]>([])
+  const [showRegistrations, setShowRegistrations] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [isCreator, setIsCreator] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -55,6 +78,40 @@ export default function HackathonDetailsPage() {
         setError(e?.message || 'Failed to load hackathon')
       } finally {
         if (!ignore) setLoading(false)
+      }
+    })()
+    return () => { ignore = true }
+  }, [id])
+
+  // Get current user and check if they're the creator
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('user')
+      const user = raw ? JSON.parse(raw) : null
+      const userId = user?.id || localStorage.getItem('userId')
+      setCurrentUserId(userId)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    if (hackathon && currentUserId) {
+      setIsCreator(hackathon.created_by === currentUserId)
+    }
+  }, [hackathon, currentUserId])
+
+  // Fetch registrations for this hackathon
+  useEffect(() => {
+    if (!id) return
+    let ignore = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/hackathons/registrations?hackathon_id=${id}`)
+        const data = await res.json()
+        if (!ignore && data.registrations) {
+          setRegistrations(data.registrations)
+        }
+      } catch (e) {
+        console.error('Error fetching registrations:', e)
       }
     })()
     return () => { ignore = true }
@@ -87,6 +144,12 @@ export default function HackathonDetailsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           userId,
+          hackathonTitle: hackathon?.title,
+          hackathonDescription: hackathon?.description,
+          hackathonStartDate: hackathon?.start_date,
+          hackathonEndDate: hackathon?.end_date,
+          hackathonLocation: hackathon?.location,
+          hackathonType: hackathon?.type,
           fullName: formData.fullName,
           email: formData.email,
           phone: formData.phone,
@@ -120,6 +183,8 @@ export default function HackathonDetailsPage() {
         }
       } catch {}
 
+      // Registration saved to Supabase, will appear on admin dashboard automatically
+
       // Update the UI to reflect registration
       if (hackathon) {
         setHackathon({
@@ -146,6 +211,27 @@ export default function HackathonDetailsPage() {
   
   const handleRegister = () => {
     handleOpenRegistration()
+  }
+
+  const handleDelete = async () => {
+    if (!hackathon || !currentUserId) return
+    if (!confirm(`Are you sure you want to delete "${hackathon.title}"? This action cannot be undone.`)) return
+    
+    try {
+      setDeleting(true)
+      const res = await fetch(`/api/hackathons/${hackathon.id}?requester_id=${currentUserId}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Failed to delete hackathon')
+      alert('Hackathon deleted successfully')
+      router.push('/hackathons')
+    } catch (e: any) {
+      alert(e?.message || 'Failed to delete hackathon')
+      console.error('Error deleting hackathon:', e)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (loading) {
@@ -279,7 +365,7 @@ export default function HackathonDetailsPage() {
                     </div>
                   )}
                   
-                  <div className="pt-4">
+                  <div className="pt-4 space-y-3">
                     <Button 
                       className={`w-full ${registered 
                         ? 'bg-green-600 hover:bg-green-700' 
@@ -305,6 +391,16 @@ export default function HackathonDetailsPage() {
                       )}
                     </Button>
                     
+                    {/* View Registrations Button */}
+                    <Button
+                      variant="outline"
+                      className="w-full border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+                      onClick={() => setShowRegistrations(!showRegistrations)}
+                    >
+                      <Users className="w-4 h-4 mr-2" />
+                      {showRegistrations ? 'Hide Registrations' : `View Registrations (${registrations.length})`}
+                    </Button>
+                    
                     {/* Registration Form Modal */}
                     <HackathonRegistrationForm
                       isOpen={isRegistrationOpen}
@@ -314,6 +410,41 @@ export default function HackathonDetailsPage() {
                       hackathonTitle={hackathon.title}
                     />
                   </div>
+                  
+                  {/* Registrations List */}
+                  {showRegistrations && (
+                    <div className="mt-4 bg-gray-800/50 rounded-lg border border-gray-700 p-4">
+                      <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                        <Users className="w-4 h-4 text-blue-400" />
+                        Registered Participants ({registrations.length})
+                      </h3>
+                      {registrations.length === 0 ? (
+                        <p className="text-gray-400 text-sm">No registrations yet. Be the first to register!</p>
+                      ) : (
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                          {registrations.map((reg) => (
+                            <div key={reg.id} className="flex items-center gap-3 p-2 bg-gray-900/50 rounded-md">
+                              <div className="w-8 h-8 rounded-full bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                                <User className="w-4 h-4 text-blue-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-white truncate">
+                                  {reg.full_name || reg.users?.name || 'Anonymous'}
+                                </p>
+                                <p className="text-xs text-gray-400 truncate">
+                                  {reg.email || reg.users?.email || ''}
+                                  {reg.occupation ? ` • ${reg.occupation}` : ''}
+                                </p>
+                              </div>
+                              <span className="text-xs text-gray-500 flex-shrink-0">
+                                {new Date(reg.joined_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -355,9 +486,53 @@ export default function HackathonDetailsPage() {
                   
                   <h1 className="text-3xl md:text-4xl font-bold mb-4">{hackathon.title}</h1>
                   
+                  {/* Creator Info */}
+                  {hackathon.creator && (
+                    <div className="flex items-center gap-2 mb-4 bg-gray-800/50 rounded-lg p-3 border border-gray-700/50 w-fit">
+                      <div className="w-8 h-8 rounded-full bg-blue-900/50 flex items-center justify-center overflow-hidden">
+                        {hackathon.creator.avatar_url && hackathon.creator.avatar_url !== '/placeholder-user.jpg' ? (
+                          <img src={hackathon.creator.avatar_url} alt={hackathon.creator.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-4 h-4 text-blue-400" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Hosted by</p>
+                        <p className="text-sm font-medium text-blue-400">{hackathon.creator.name}</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   <p className="text-gray-300 leading-relaxed mb-6">
                     {hackathon.description}
                   </p>
+                  
+                  {/* Creator Actions */}
+                  {isCreator && (
+                    <div className="flex gap-3 mb-6">
+                      <Button
+                        variant="outline"
+                        className="border-blue-600 text-blue-400 hover:bg-blue-900/20"
+                        onClick={() => window.location.href = `/admin`}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit in Admin
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="border-red-600 text-red-400 hover:bg-red-900/20"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                      >
+                        {deleting ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 mr-2" />
+                        )}
+                        Delete
+                      </Button>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     {hackathon.skill_level && (
@@ -486,12 +661,12 @@ export default function HackathonDetailsPage() {
                             <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-700"></div>
                             <ul className="space-y-6">
                               {hackathon.schedule.map((item, index) => (
-                                <li key={index} className="flex items-start gap-4 relative">
+                                <li key={index} className="flex items-start gap-2 sm:gap-4 relative">
                                   <div className="absolute left-4 top-2 w-2 h-2 rounded-full bg-blue-500 -translate-x-[5px]"></div>
-                                  <div className="min-w-[140px] text-sm text-gray-400 pt-0.5 pl-8">
+                                  <div className="min-w-[90px] sm:min-w-[140px] text-xs sm:text-sm text-gray-400 pt-0.5 pl-6 sm:pl-8">
                                     {item.time}
                                   </div>
-                                  <div className="flex-1 bg-gray-800/50 p-3 rounded-md border border-gray-700/50">
+                                  <div className="flex-1 min-w-0 bg-gray-800/50 p-2 sm:p-3 rounded-md border border-gray-700/50">
                                     {item.activity}
                                   </div>
                                 </li>

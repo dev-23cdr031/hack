@@ -250,13 +250,13 @@ export default function AdminPlagiarismPage() {
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-md">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-white/20">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-white/20 text-xs sm:text-sm">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="results" className="data-[state=active]:bg-white/20">
-              Analysis Results
+            <TabsTrigger value="results" className="data-[state=active]:bg-white/20 text-xs sm:text-sm">
+              Results
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-white/20">
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-white/20 text-xs sm:text-sm">
               Analytics
             </TabsTrigger>
           </TabsList>

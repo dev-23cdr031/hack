@@ -1,28 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { mockUsers } from './mockData'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   
   const skills = searchParams.get('skills')?.split(',')
-  const limit = parseInt(searchParams.get('limit') || '10')
+  const limit = parseInt(searchParams.get('limit') || '50')
 
-  // For demo purposes, always return mock data to avoid fetch errors
-  console.log('Using mock data for demo purposes')
-  
-  let filteredUsers = mockUsers.slice(0, limit)
-  
-  if (skills && skills.length > 0) {
-    filteredUsers = filteredUsers.filter(user => 
-      skills.some(skill => user.skills.includes(skill))
-    )
-  }
-  
-  return NextResponse.json(filteredUsers)
-
-  // Commented out database code to prevent fetch errors
-  /*
   const supabase = createServerSupabaseClient()
   
   try {
@@ -39,24 +23,15 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.log('Database error, using mock data:', error.message)
-      let filteredUsers = mockUsers.slice(0, limit)
-      
-      if (skills && skills.length > 0) {
-        filteredUsers = filteredUsers.filter(user => 
-          skills.some(skill => user.skills.includes(skill))
-        )
-      }
-      
-      return NextResponse.json(filteredUsers)
+      console.log('Database error:', error.message)
+      return NextResponse.json([])
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(data || [])
   } catch (error) {
-    console.log('API error, using mock data:', error)
-    return NextResponse.json(mockUsers.slice(0, limit))
+    console.log('API error:', error)
+    return NextResponse.json([])
   }
-  */
 }
 
 export async function POST(request: NextRequest) {

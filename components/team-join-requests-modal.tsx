@@ -306,7 +306,7 @@ export function TeamJoinRequestsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 border border-purple-500/20">
+      <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 border border-purple-500/20 sm:max-w-4xl">
         <DialogHeader className="border-b border-purple-500/20 pb-4">
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent flex items-center gap-2">
             <Users className="w-6 h-6 text-purple-400" />

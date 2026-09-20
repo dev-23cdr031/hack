@@ -137,18 +137,18 @@ export default function HackMeetPage() {
       <div className="relative z-10 flex flex-col h-screen">
         
         {/* Top Bar */}
-        <div className="flex justify-between items-center p-4 bg-gray-900/80 backdrop-blur-md border-b border-gray-700/50">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium">
+        <div className="flex justify-between items-center gap-2 p-3 sm:p-4 bg-gray-900/80 backdrop-blur-md border-b border-gray-700/50">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse flex-shrink-0"></div>
+              <span className="text-sm font-medium truncate">
                 Meeting ID: {meetingId || "Loading..."}
               </span>
               <Button 
                 size="sm" 
                 variant="ghost" 
                 onClick={copyMeetingId}
-                className="h-6 w-6 p-0 hover:bg-gray-700"
+                className="h-6 w-6 p-0 hover:bg-gray-700 flex-shrink-0"
               >
                 <Copy className="w-3 h-3" />
               </Button>
@@ -160,7 +160,7 @@ export default function HackMeetPage() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Badge className="bg-green-500/20 text-green-300">
+            <Badge className="hidden sm:flex bg-green-500/20 text-green-300">
               <Signal className="w-3 h-3 mr-1" />
               Excellent
             </Badge>
@@ -176,11 +176,11 @@ export default function HackMeetPage() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex">
+        <div className="flex-1 flex relative">
           
           {/* Video Grid */}
-          <div className="flex-1 p-4">
-            <div className="grid grid-cols-2 gap-4 h-full">
+          <div className="flex-1 p-2 sm:p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 h-full">
               {participants.map((participant) => (
                 <div 
                   key={participant.id} 
@@ -242,7 +242,7 @@ export default function HackMeetPage() {
 
           {/* Side Panel */}
           {(showChat || showParticipants) && (
-            <div className="w-80 bg-gray-900/90 backdrop-blur-md border-l border-gray-700/50 flex flex-col">
+            <div className="absolute sm:relative right-0 top-0 bottom-0 z-20 w-[85%] max-w-[340px] sm:w-80 sm:max-w-xs bg-gray-900/95 sm:bg-gray-900/90 backdrop-blur-md border-l border-gray-700/50 flex flex-col shadow-2xl sm:shadow-none">
               {/* Panel Header */}
               <div className="flex border-b border-gray-700/50">
                 <Button
@@ -349,49 +349,49 @@ export default function HackMeetPage() {
         </div>
 
         {/* Bottom Control Bar */}
-        <div className="bg-gray-900/90 backdrop-blur-md border-t border-gray-700/50 p-4">
-          <div className="flex items-center justify-between max-w-4xl mx-auto">
+        <div className="bg-gray-900/90 backdrop-blur-md border-t border-gray-700/50 p-2 sm:p-4">
+          <div className="flex items-center justify-between gap-2 max-w-4xl mx-auto overflow-x-auto no-scrollbar">
             
             {/* Left Controls */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button
                 onClick={toggleMic}
-                className={`w-12 h-12 rounded-full ${isMicOn ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
+                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${isMicOn ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
               >
-                {isMicOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                {isMicOn ? <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> : <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />}
               </Button>
               
               <Button
                 onClick={toggleVideo}
-                className={`w-12 h-12 rounded-full ${isVideoOn ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
+                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${isVideoOn ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'}`}
               >
-                {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                {isVideoOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
               </Button>
 
               <Button
                 onClick={toggleScreenShare}
-                className={`w-12 h-12 rounded-full ${isScreenSharing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${isScreenSharing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
               >
-                <Monitor className="w-5 h-5" />
+                <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
 
               <Button
                 onClick={toggleHandRaise}
-                className={`w-12 h-12 rounded-full ${isHandRaised ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${isHandRaised ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-700 hover:bg-gray-600'}`}
               >
-                <Hand className="w-5 h-5" />
+                <Hand className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
             </div>
 
             {/* Center Controls */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button
                 onClick={() => setShowParticipants(!showParticipants)}
                 variant="ghost"
                 className="hover:bg-gray-700"
               >
-                <Users className="w-5 h-5 mr-2" />
-                {participants.length}
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{participants.length}</span>
               </Button>
 
               <Button
@@ -399,8 +399,8 @@ export default function HackMeetPage() {
                 variant="ghost"
                 className="hover:bg-gray-700"
               >
-                <MessageSquare className="w-5 h-5 mr-2" />
-                Chat
+                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Chat</span>
               </Button>
 
               <Button
@@ -408,25 +408,25 @@ export default function HackMeetPage() {
                 className={`${isRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'}`}
               >
                 {isRecording && <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>}
-                Record
+                <span className="hidden sm:inline">Record</span>
               </Button>
             </div>
 
             {/* Right Controls */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button
                 variant="ghost"
                 className="hover:bg-gray-700"
               >
-                <Share2 className="w-5 h-5" />
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
 
               <Button
                 onClick={leaveMeeting}
-                className="bg-red-600 hover:bg-red-700 px-6"
+                className="bg-red-600 hover:bg-red-700 px-4 sm:px-6"
               >
-                <PhoneOff className="w-5 h-5 mr-2" />
-                Leave
+                <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Leave</span>
               </Button>
             </div>
           </div>

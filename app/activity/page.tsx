@@ -222,14 +222,14 @@ export default function ActivityPage() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 bg-transparent">
-                <Download className="w-4 h-4 mr-2" />
-                Export
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 bg-transparent px-2 sm:px-3">
+                <Download className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Export</span>
               </Button>
-              <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Analytics
+              <Button size="sm" className="bg-green-600 hover:bg-green-700 px-2 sm:px-4">
+                <BarChart3 className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Analytics</span>
               </Button>
             </div>
           </div>

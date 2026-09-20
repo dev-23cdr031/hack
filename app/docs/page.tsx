@@ -485,29 +485,28 @@ If these solutions don't work:
         {/* Article Header */}
         <div className="sticky top-0 z-40 backdrop-blur-xl bg-black/20 border-b border-white/10">
           <div className="max-w-6xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                 <Button
                   onClick={() => setSelectedArticle(null)}
                   variant="ghost"
                   size="sm"
-                  className="text-gray-400 hover:text-white"
+                  className="text-gray-400 hover:text-white flex-shrink-0"
                 >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Docs
+                  <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+                  Back
                 </Button>
-                <div>
-                  <h1 className="text-xl font-bold text-white">{selectedArticle.title}</h1>
-                  <div className="flex items-center gap-3 text-sm text-gray-400">
+                <div className="min-w-0">
+                  <h1 className="text-base sm:text-xl font-bold text-white truncate">{selectedArticle.title}</h1>
+                  <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-400 truncate">
                     <span>{selectedArticle.readTime} min read</span>
                     <span>•</span>
-                    <span>Updated {formatDate(selectedArticle.lastUpdated)}</span>
-                    <span>•</span>
+                    <span className="hidden sm:inline">Updated {formatDate(selectedArticle.lastUpdated)}</span>
                     {getDifficultyBadge(selectedArticle.difficulty)}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
                   <Bookmark className="w-4 h-4" />
                 </Button>
@@ -558,13 +557,13 @@ If these solutions don't work:
               <Link href="/" className="text-gray-400 hover:text-white transition-colors">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <div className="flex items-center gap-3">
-                <BookOpen className="w-8 h-8 text-purple-400" />
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <BookOpen className="w-7 h-7 sm:w-8 sm:h-8 text-purple-400 flex-shrink-0" />
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent truncate">
                     Documentation
                   </h1>
-                  <p className="text-sm text-gray-400">Everything you need to know about HackConnect</p>
+                  <p className="hidden sm:block text-sm text-gray-400">Everything you need to know about HackConnect</p>
                 </div>
               </div>
             </div>

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Eye, EyeOff, UserPlus, ArrowLeft, Mail, Lock, User, MapPin, AlertCircle, CheckCircle, GraduationCap } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -90,46 +91,111 @@ export default function SignupPage() {
     }
 
     try {
-      // Call signup API
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name.trim(),
+            bio: formData.bio,
+            location: formData.location,
+            experience_level: formData.experienceLevel,
+            role: formData.userType,
+          },
         },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          bio: formData.bio,
-          location: formData.location,
-          experienceLevel: formData.experienceLevel,
-          userType: formData.userType,
-        }),
       })
 
-      const data = await response.json()
+      if (signUpError) throw signUpError
+      if (!data.user) throw new Error("Signup failed")
 
-      if (!response.ok) {
-        setError(data.error || "Signup failed")
-        setLoading(false)
+      if (!data.session) {
+        setError("Account created. Check your email to confirm your account before signing in.")
         return
       }
 
-      if (data.success) {
-        // Store user data in localStorage
-        localStorage.setItem("user", JSON.stringify(data.user))
-        localStorage.setItem("userId", data.user.id)
-        localStorage.setItem("isAuthenticated", "true")
-        localStorage.setItem("userType", formData.userType)
-
-        // Redirect to profile page so the new account can be reviewed
-        router.push("/profile")
-      } else {
-        setError(data.error || "Signup failed")
+      // Create / sync the profile row in the users table so the new user
+      // appears on the public profiles page right away (no first-login wait).
+      const userId = data.user.id
+      const userEmail = data.user.email || formData.email.trim().toLowerCase()
+      const profileTitle = formData.experienceLevel
+        ? `${formData.experienceLevel.charAt(0).toUpperCase()}${formData.experienceLevel.slice(1)} Developer`
+        : "Developer"
+      const profileRow = {
+        id: userId,
+        email: userEmail,
+        name: formData.name.trim(),
+        bio: formData.bio || "New HackConnect user",
+        title: profileTitle,
+        skills: ["JavaScript", "React"],
+        avatar_url: "/placeholder-user.jpg",
+        location: formData.location || null,
+        experience_level: formData.experienceLevel || "beginner",
+        role: formData.userType || "student",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
-    } catch (error) {
+
+      let storedProfile = null
+      try {
+        const { data: existing } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", userId)
+          .maybeSingle()
+
+        if (existing) {
+          storedProfile = existing
+        } else {
+          const { data: inserted, error: insertError } = await supabase
+            .from("users")
+            .insert(profileRow)
+            .select()
+            .maybeSingle()
+
+          if (insertError) {
+            console.warn("Could not insert profile row (will be created on next login):", insertError.message)
+          } else {
+            storedProfile = inserted
+          }
+        }
+      } catch (e) {
+        console.error("Failed to create profile row on signup:", e)
+      }
+
+      // Save the signed-in user locally so /profile and /messages work immediately
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: userId,
+          email: userEmail,
+          name: storedProfile?.name || formData.name.trim(),
+          bio: storedProfile?.bio || formData.bio || "",
+          title: storedProfile?.title || profileTitle,
+          skills: storedProfile?.skills || [],
+          avatar_url: storedProfile?.avatar_url || "/placeholder-user.jpg",
+          location: storedProfile?.location || formData.location || "",
+          experience_level: storedProfile?.experience_level || formData.experienceLevel || "beginner",
+          role: storedProfile?.role || formData.userType || "student",
+        })
+      )
+
+      localStorage.setItem("userId", userId)
+      localStorage.setItem("isAuthenticated", "true")
+      localStorage.setItem("userType", formData.userType || "student")
+
+      router.push(formData.userType === "admin" ? "/admin" : "/profile")
+    } catch (error: any) {
       console.error("Signup error:", error)
-      setError("Network error. Please try again.")
+      // Show actual Supabase error messages instead of generic network error
+      if (error.message.includes("User already registered")) {
+        setError("An account with this email already exists. Please sign in instead.")
+      } else if (error.message.includes("weak password")) {
+        setError("Password is too weak. Please use a stronger password.")
+      } else if (error.message.includes("Rate limit")) {
+        setError("Too many signup attempts. Please try again later.")
+      } else {
+        setError(error.message || "Signup failed. Please try again.")
+      }
     } finally {
       setLoading(false)
     }
@@ -157,7 +223,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#020817] flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
@@ -261,6 +327,18 @@ export default function SignupPage() {
                     <span className={`font-medium ${formData.userType === 'student' ? 'text-blue-300' : 'text-gray-300'}`}>Student</span>
                     <span className="text-xs text-gray-400 text-center mt-1">Join hackathons and find teams</span>
                   </div>
+                  {(["mentor", "admin"] as const).map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      className={`flex flex-col items-center p-4 rounded-lg cursor-pointer border transition-all ${formData.userType === role ? "bg-blue-500/10 border-blue-500/50" : "bg-gray-800/50 border-gray-700 hover:border-gray-600"}`}
+                      onClick={() => handleInputChange("userType", role)}
+                    >
+                      <User className={`w-8 h-8 mb-2 ${formData.userType === role ? "text-blue-400" : "text-gray-400"}`} />
+                      <span className={`font-medium capitalize ${formData.userType === role ? "text-blue-300" : "text-gray-300"}`}>{role}</span>
+                      <span className="text-xs text-gray-400 text-center mt-1">{role === "mentor" ? "Guide teams and share expertise" : "Create and manage hackathons"}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 

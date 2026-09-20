@@ -172,7 +172,7 @@ export function HackathonRegistrationForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] bg-gray-900 text-white border border-gray-800 p-0 overflow-hidden">
+      <DialogContent className="w-full sm:max-w-[600px] bg-gray-900 text-white border border-gray-800 p-0 overflow-hidden">
         <div className="sticky top-0 z-10 bg-gray-900 border-b border-gray-800">
           <DialogHeader className="p-6 pb-4">
             <div className="flex items-center justify-between">

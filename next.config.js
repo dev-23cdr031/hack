@@ -2,14 +2,14 @@
 const nextConfig = {
   reactStrictMode: false,
   swcMinify: true,
+  compiler: {
+    // Remove console.log in production for better performance
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
   typescript: {
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
     ignoreBuildErrors: true,
   },
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
   images: {
@@ -29,6 +29,12 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'uzsygzfchokeotyqlako.supabase.co',
         port: '',
         pathname: '/**',
       },

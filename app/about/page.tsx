@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Users, Target, Zap, Heart, Home, Phone, MapPin } from "lucide-react"
+import { HamburgerMenu } from "@/components/hamburger-menu"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -87,14 +88,16 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
         <Link
           href="/"
-          className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+          className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate"
         >
           HackConnect
         </Link>
-        <div className="flex gap-6">
+        <div className="flex items-center gap-2">
+          <HamburgerMenu />
+          <div className="hidden md:flex gap-6">
           <Link href="/" className="text-gray-300 hover:text-blue-400 flex items-center gap-2">
             <Home className="w-4 h-4" />
             Home
@@ -107,6 +110,7 @@ export default function AboutPage() {
             <Phone className="w-4 h-4" />
             Contact
           </Link>
+          </div>
         </div>
       </nav>
 
@@ -187,7 +191,7 @@ export default function AboutPage() {
           <h2 className="text-4xl font-bold text-center mb-12 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             Our Values
           </h2>
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {values.map((value, index) => (
               <Card key={index} className="bg-gray-800 border-gray-700">
                 <CardContent className="p-6">
@@ -211,7 +215,7 @@ export default function AboutPage() {
           <h2 className="text-4xl font-bold text-center mb-12 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             Meet Our Team
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {teamMembers.map((member, index) => (
               <Link key={index} href={member.portfolioUrl} className="block group">
                 <Card className="bg-gray-800 border-gray-700 text-center hover:bg-gray-700 transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl">

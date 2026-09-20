@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, MapPin, Users } from "lucide-react"
+import { Calendar, MapPin, Users, User as UserIcon } from "lucide-react"
 import type { Hackathon } from "@/lib/types"
 import { HackathonRegistrationForm, RegistrationFormData } from "./hackathon-registration-form"
 
@@ -72,6 +72,22 @@ export function HackathonCard({ hackathon, onJoin, joiningId }: HackathonCardPro
         <h3 className="text-xl font-semibold text-white line-clamp-2 pr-2">{hackathon.title}</h3>
         <Badge className={`${getStatusColor(hackathon.status)} ml-2 whitespace-nowrap`}>{hackathon.status}</Badge>
       </div>
+
+      {/* Creator Info */}
+      {hackathon.creator && (
+        <div className="px-5 py-3 bg-gray-900/60 border-b border-gray-800 flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-blue-900/50 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {hackathon.creator.avatar_url && hackathon.creator.avatar_url !== '/placeholder-user.jpg' ? (
+              <img src={hackathon.creator.avatar_url} alt={hackathon.creator.name} className="w-full h-full object-cover" />
+            ) : (
+              <UserIcon className="w-3.5 h-3.5 text-blue-400" />
+            )}
+          </div>
+          <span className="text-xs text-gray-400">
+            Hosted by <span className="text-blue-400 font-medium">{hackathon.creator.name}</span>
+          </span>
+        </div>
+      )}
 
       <div className="p-6 flex-grow flex flex-col">
         <p className="text-gray-300 text-sm mb-5 line-clamp-3">{hackathon.description}</p>

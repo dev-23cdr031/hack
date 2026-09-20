@@ -1,7 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import { ChatbotWrapper } from "@/components/chatbot-wrapper"
+import { ChatbotWrapper } from "@/chatbot/chatbot-wrapper"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -18,9 +18,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} min-h-screen bg-[#020817] text-white antialiased`}>
+        <div className="min-h-screen w-full bg-[#020817] text-white">
+          {children}
+        </div>
         <ChatbotWrapper />
       </body>
     </html>

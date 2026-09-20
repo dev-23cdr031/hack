@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeft, Check, X, Users, MessageCircle, User, Home, Globe, Heart } from "lucide-react"
+import { HamburgerMenu } from "@/components/hamburger-menu"
 import type { User as Profile } from "@/lib/types"
 
 interface RequestItem {
@@ -123,16 +124,18 @@ export default function RequestsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Nav */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <Link
             href="/"
-            className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+            className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate"
           >
             HackConnect
           </Link>
         </div>
-        <div className="flex gap-6">
+        <div className="flex items-center gap-2">
+          <HamburgerMenu />
+          <div className="hidden lg:flex gap-4 xl:gap-6">
           <Link href="/" className="text-gray-300 hover:text-blue-400 flex items-center gap-2 transition-colors">
             <Home className="w-4 h-4" />
             Home
@@ -149,6 +152,7 @@ export default function RequestsPage() {
             <MessageCircle className="w-4 h-4" />
             Messages
           </Link>
+          </div>
         </div>
       </nav>
 

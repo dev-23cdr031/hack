@@ -58,23 +58,28 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-800/50">
-        <div className="flex items-center gap-3">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-800/50">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Image
             src="/hackconnect-logo.svg"
             alt="HackConnect Logo"
-            width={40}
-            height={40}
-            className="rounded-md shadow-[0_0_20px_rgba(99,102,241,0.35)]"
+            width={36}
+            height={36}
+            className="rounded-md shadow-[0_0_20px_rgba(99,102,241,0.35)] flex-shrink-0 sm:w-10 sm:h-10"
             priority
           />
-          <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <div className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate">
             HackConnect
           </div>
         </div>
-        <div className="flex gap-4">
-          <Link href="/get-started">
+        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+          <Link href="/get-started" className="hidden md:block">
             <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all">
+              Get Started
+            </Button>
+          </Link>
+          <Link href="/get-started" className="md:hidden">
+            <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all">
               Get Started
             </Button>
           </Link>
@@ -93,13 +98,13 @@ export default function HomePage() {
               Trusted by 15,000+ Developers Worldwide
             </Badge>
 
-            <h1 className="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent leading-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent leading-tight">
               Where Innovation
               <br />
               Meets Collaboration
             </h1>
 
-            <p className="text-xl md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed">
               Join the world's largest hackathon platform. Discover amazing events, form winning teams, and build the
               future with developers from around the globe.
             </p>

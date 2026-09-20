@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { ChatbotAI } from '@/lib/chatbot-ai';
+import { ChatbotAI } from '@/chatbot/chatbot-ai';
 
 // You would typically store this in an environment variable
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';

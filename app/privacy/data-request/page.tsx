@@ -158,7 +158,7 @@ export default function DataRequestForm() {
               </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <Card className="bg-slate-800 border-slate-700">
                 <CardContent className="p-4">
                   <h3 className="font-semibold text-white mb-2">Processing Timeline</h3>
@@ -248,7 +248,7 @@ export default function DataRequestForm() {
               {currentStep === 1 && (
                 <div>
                   <h2 className="text-2xl font-bold text-white mb-6">Select Request Type</h2>
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {requestTypes.map((type) => (
                       <Card
                         key={type.id}
@@ -283,7 +283,7 @@ export default function DataRequestForm() {
                 <div>
                   <h2 className="text-2xl font-bold text-white mb-6">Personal Information</h2>
                   <div className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="firstName" className="text-slate-300">
                           First Name *
@@ -310,7 +310,7 @@ export default function DataRequestForm() {
                       </div>
                     </div>
 
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="email" className="text-slate-300">
                           Your Email Address *
@@ -374,7 +374,7 @@ export default function DataRequestForm() {
 
                     <div>
                       <Label className="text-slate-300 mb-4 block">Choose Verification Method *</Label>
-                      <div className="grid md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {verificationMethods.map((method) => (
                           <Card
                             key={method.id}
@@ -443,7 +443,7 @@ export default function DataRequestForm() {
                   <div className="space-y-6">
                     <div>
                       <Label className="text-slate-300 mb-4 block">Select Data Categories *</Label>
-                      <div className="grid md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {dataCategories.map((category) => (
                           <div key={category.id} className="flex items-start space-x-3 p-3 bg-slate-700 rounded-lg">
                             <Checkbox

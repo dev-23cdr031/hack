@@ -161,5 +161,49 @@ export const mockTeams: Team[] = teamNames.map((name, index) => {
     roles_needed: skills[index].slice(0, 3),
     created_at: createdAt,
     updated_at: createdAt,
+    // Add mentor-related fields for mock data
+    mentor_id: null,
+    mentor_requested_at: null,
+    mentor_approved_at: null,
+    mentor_status: 'none',
   }
 })
+
+// Mock mentor requests to track all mentor team requests
+export interface MentorTeamRequest {
+  id: string
+  team_id: string
+  mentor_id: string
+  team_leader_id: string
+  message?: string
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  updated_at: string
+  reviewed_at?: string
+  reviewed_by?: string
+}
+
+export const mockMentorRequests: MentorTeamRequest[] = []
+
+// Add a new mentor request
+export function addMentorRequest(request: Omit<MentorTeamRequest, 'id' | 'created_at' | 'updated_at'>): MentorTeamRequest {
+  const newRequest: MentorTeamRequest = {
+    ...request,
+    id: `mentor-request-${Date.now()}`,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+  mockMentorRequests.push(newRequest)
+  return newRequest
+}
+
+// Update a team's mentor status
+export function updateTeamMentorStatus(teamId: string, status: string, mentorId: string | null) {
+  const team = mockTeams.find(t => t.id === teamId)
+  if (team) {
+    team.mentor_status = status
+    team.mentor_id = mentorId
+    team.mentor_requested_at = new Date().toISOString()
+    team.updated_at = new Date().toISOString()
+  }
+}

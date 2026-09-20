@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { createClient } from '@supabase/supabase-js'
-import { 
-  mockConversations, 
-  getConversationsByUser, 
-  addConversation,
-  updateConversationReadStatus 
-} from '@/lib/mock-conversations'
 
 export async function GET(request: NextRequest) {
   const supabase = createServerSupabaseClient()
@@ -18,160 +11,241 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'user_id is required' }, { status: 400 })
   }
 
-  // Demo conversations data for fallback
-  const demoConversations = [
-    {
-      id: "1",
-      name: "AI Innovators Team",
-      type: "team",
-      avatar_url: "/team-collaboration.png",
-      last_message: "Great work on the ML model! Ready for tomorrow's presentation?",
-      last_message_time: "2024-02-15T14:30:00Z",
-      unread_count: 3,
-      participants: [
-        { id: "1", name: "Dev Dharrshan", avatar_url: "/team/dev-dharrshan.jpg", status: "online" },
-        { id: "2", name: "Anusree", avatar_url: "/team/anusree.jpg", status: "online" },
-        { id: "3", name: "Bharani", avatar_url: "/team/bharani.jpg", status: "away" },
-      ],
-    },
-    {
-      id: "2",
-      name: "Divyadharshini",
-      type: "direct",
-      avatar_url: "/team/divya-dharshini.jpg",
-      last_message: "Hey! Want to collaborate on the blockchain hackathon?",
-      last_message_time: "2024-02-15T12:15:00Z",
-      unread_count: 1,
-      participants: [
-        { id: "4", name: "Divyadharshini", avatar_url: "/team/divya-dharshini.jpg", status: "online" },
-      ],
-    },
-    {
-      id: "3",
-      name: "Green Tech Hackathon",
-      type: "hackathon",
-      avatar_url: "/hackconnect-logo.png",
-      last_message: "Welcome to the Green Tech Sustainability Hack! Check out the resources.",
-      last_message_time: "2024-02-15T10:00:00Z",
-      unread_count: 0,
-      participants: [
-        { id: "5", name: "HackConnect Team", avatar_url: "/hackconnect-logo.png", status: "online" },
-      ],
-    },
-    {
-      id: "4",
-      name: "Anusree",
-      type: "direct",
-      avatar_url: "/team/anusree.jpg",
-      last_message: "Thanks for the feedback on our EcoTrack app!",
-      last_message_time: "2024-02-14T18:45:00Z",
-      unread_count: 0,
-      participants: [
-        { id: "6", name: "Anusree", avatar_url: "/team/anusree.jpg", status: "offline" },
-      ],
-    },
-  ]
-
   try {
     console.log('Fetching conversations for user:', user_id)
-    
-    // Add a small delay to simulate network latency
-    await new Promise(resolve => setTimeout(resolve, 200))
 
-    // Try to get conversations from Supabase first
-    try {
-      // For now, let's get teams where the user is a member to create team conversations
-      const { data: userTeams, error: teamsError } = await supabase
-        .from('team_members')
-        .select(`
-          team:teams(
-            id,
-            name,
-            description,
-            leader:users(name, avatar_url),
-            hackathon:hackathons(id, title)
-          )
-        `)
-        .eq('user_id', user_id)
+    // Get teams where the user is a member (team conversations)
+    const { data: userTeams, error: teamsError } = await supabase
+      .from('team_members')
+      .select(`
+        team:teams(
+          id,
+          name,
+          description,
+          leader:users!teams_leader_id_fkey(id, name, avatar_url),
+          hackathon:hackathons(id, title)
+        )
+      `)
+      .eq('user_id', user_id)
 
-      if (teamsError) {
-        throw teamsError
-      }
+    if (teamsError) {
+      console.error('Error fetching user teams:', teamsError)
+    }
 
-      // Create conversation objects from teams
-      const conversations = await Promise.all(
-        (userTeams || []).map(async (item: any) => {
-          const team = item.team
+    // Create team conversations
+    const teamConversations = await Promise.all(
+      (userTeams || []).map(async (item: any) => {
+        const team = item.team
+        if (!team) return null
 
-          // Get last message for this team
-          const { data: lastMessage } = await supabase
+        // Get last message for this team
+        const { data: lastMessage } = await supabase
+          .from('messages')
+          .select(`
+            content,
+            created_at,
+            sender:users!messages_sender_id_fkey(id, name, avatar_url)
+          `)
+          .eq('team_id', team.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        // Get all team members
+        const { data: teamMembers } = await supabase
+          .from('team_members')
+          .select(`
+            user:users!team_members_user_id_fkey(
+              id,
+              name,
+              avatar_url,
+              email
+            )
+          `)
+          .eq('team_id', team.id)
+
+        return {
+          id: team.id,
+          name: team.name,
+          type: 'team',
+          avatar_url: (team.leader as any)?.avatar_url || '',
+          last_message: lastMessage?.content || '',
+          last_message_time: lastMessage?.created_at || team.created_at,
+          last_message_sender: (lastMessage?.sender as any)?.name || '',
+          unread_count: 0,
+          participants: (teamMembers || []).map((member: any) => ({
+            id: member.user.id,
+            name: member.user.name,
+            avatar_url: member.user.avatar_url,
+            email: member.user.email,
+            status: 'online'
+          }))
+        }
+      })
+    )
+
+    // Get accepted connections for direct conversations
+    const { data: acceptedConnections, error: connError } = await supabase
+      .from('connection_requests')
+      .select(`
+        *,
+        sender:users!connection_requests_sender_id_fkey(id, name, avatar_url, email),
+        receiver:users!connection_requests_receiver_id_fkey(id, name, avatar_url, email)
+      `)
+      .eq('status', 'accepted')
+      .or(`sender_id.eq.${user_id},receiver_id.eq.${user_id}`)
+
+    if (connError) {
+      console.error('Error fetching accepted connections:', connError)
+    }
+
+    // Build direct conversations from accepted connections
+    const directConversationsMap = new Map()
+    for (const conn of (acceptedConnections || [])) {
+      const otherUser = conn.sender_id === user_id ? conn.receiver : conn.sender
+      if (!otherUser) continue
+      
+      // Get last message between these users (try with conversation_id first, fallback to sender-based)
+      let lastMsg = null
+      try {
+        const { data: msgData } = await supabase
+          .from('messages')
+          .select(`
+            content,
+            created_at,
+            sender:users!messages_sender_id_fkey(id, name, avatar_url)
+          `)
+          .or(`and(sender_id.eq.${user_id},conversation_id.eq.${conn.id}),and(sender_id.eq.${otherUser.id},conversation_id.eq.${conn.id})`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+        lastMsg = msgData
+      } catch (e) {
+        // If conversation_id column doesn't exist, fallback to sender-based query
+        try {
+          const { data: msgData } = await supabase
             .from('messages')
             .select(`
               content,
               created_at,
-              sender:users(name, avatar_url)
+              sender:users!messages_sender_id_fkey(id, name, avatar_url)
             `)
-            .eq('team_id', team.id)
+            .or(`and(sender_id.eq.${user_id},team_id.is.null),and(sender_id.eq.${otherUser.id},team_id.is.null)`)
             .order('created_at', { ascending: false })
             .limit(1)
             .single()
+          lastMsg = msgData
+        } catch {}
+      }
 
-          // Get all team members for participants
-          const { data: teamMembers } = await supabase
-            .from('team_members')
-            .select(`
-              user:users(
-                id,
-                name,
-                avatar_url,
-                email
-              )
-            `)
-            .eq('team_id', team.id)
+      directConversationsMap.set(otherUser.id, {
+        id: `direct-${otherUser.id}`,
+        name: otherUser.name || 'User',
+        type: 'direct',
+        avatar_url: otherUser.avatar_url || '',
+        last_message: lastMsg?.content || '',
+        last_message_time: lastMsg?.created_at || conn.created_at,
+        last_message_sender: (lastMsg?.sender as any)?.name || '',
+        unread_count: 0,
+        participants: [{
+          id: otherUser.id,
+          name: otherUser.name,
+          avatar_url: otherUser.avatar_url,
+          email: otherUser.email,
+          status: 'online'
+        }]
+      })
+    }
 
-          return {
-            id: team.id, // Using team_id as conversation_id for now
-            name: team.name,
-            type: 'team',
-            avatar_url: (team.leader as any)?.avatar_url || '',
-            last_message: lastMessage?.content || '',
-            last_message_time: lastMessage?.created_at || team.created_at,
-            last_message_sender: (lastMessage?.sender as any)?.name || '',
-            unread_count: 0, // TODO: Implement proper unread counting
-            participants: (teamMembers || []).map((member: any) => ({
-              id: member.user.id,
-              name: member.user.name,
-              avatar_url: member.user.avatar_url,
-              status: 'online' // TODO: Implement real status tracking
-            }))
+    // Add direct conversations the user is actually part of (from conversations/participants).
+    // This ensures that after messaging any user, that conversation shows up here.
+    const { data: participantRows, error: participantsError } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', user_id)
+
+    if (!participantsError) {
+      const participantConvIds = Array.from(new Set(
+        (participantRows || []).map((r: any) => r.conversation_id)
+      ))
+
+      const realDirectConversations = await Promise.all(
+        participantConvIds.map(async (conversationId: string) => {
+          try {
+            const { data: conv } = await supabase
+              .from('conversations')
+              .select('*')
+              .eq('id', conversationId)
+              .eq('type', 'direct')
+              .maybeSingle()
+
+            if (!conv) return null
+
+            // Find the other participant (their profile info is shown in the message page)
+            const { data: others } = await supabase
+              .from('conversation_participants')
+              .select(`user:users!conversation_participants_user_id_fkey(id, name, avatar_url, email, bio, title, skills)`)
+              .eq('conversation_id', conversationId)
+              .neq('user_id', user_id)
+
+            const other = (others || [])[0]?.user
+            if (!other) return null
+
+            // Last message in this conversation
+            let lastMsg: any = null
+            try {
+              const { data: msgData } = await supabase
+                .from('messages')
+                .select(`content, created_at, sender:users!messages_sender_id_fkey(id, name, avatar_url)`)
+                .eq('conversation_id', conversationId)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single()
+              lastMsg = msgData
+            } catch {}
+
+            return {
+              userId: other.id,
+              conversation: {
+                id: `direct-${other.id}`,
+                name: other.name || 'User',
+                type: 'direct',
+                avatar_url: other.avatar_url || '',
+                last_message: lastMsg?.content || '',
+                last_message_time: lastMsg?.created_at || conv.created_at,
+                last_message_sender: (lastMsg?.sender as any)?.name || '',
+                unread_count: 0,
+                participants: [{
+                  id: other.id,
+                  name: other.name,
+                  avatar_url: other.avatar_url,
+                  email: other.email,
+                  bio: other.bio,
+                  title: other.title,
+                  status: 'online'
+                }]
+              }
+            }
+          } catch (e) {
+            return null
           }
         })
       )
 
-      console.log('Conversations fetched from Supabase:', conversations.length)
-
-      // If we have conversations from Supabase, return them
-      if (conversations.length > 0) {
-        return NextResponse.json(conversations)
+      // Real conversations take precedence over accepted-connection derived ones
+      for (const item of realDirectConversations.filter(Boolean)) {
+        directConversationsMap.set((item as any).userId, (item as any).conversation)
       }
-    } catch (supabaseError) {
-      console.error('Supabase error:', supabaseError)
     }
 
-    // Fallback to mock data
-    console.log('Using mock conversations as fallback')
-    const userConversations = getConversationsByUser(user_id)
-    
-    if (userConversations.length > 0) {
-      return NextResponse.json(userConversations)
-    }
+    const directConversations = Array.from(directConversationsMap.values())
+    const allConversations = [...teamConversations.filter(Boolean), ...directConversations]
 
-    // If user not found in mock data, return all mock conversations for demo
-    return NextResponse.json(mockConversations)
+    console.log('Conversations fetched:', allConversations.length)
+    return NextResponse.json(allConversations)
   } catch (error) {
     console.error('Conversations API error:', error)
-    console.log('Error occurred, returning mock conversations as fallback')
-    return NextResponse.json(mockConversations)
+    return NextResponse.json([])
   }
 }
 
@@ -190,43 +264,21 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Create the conversation
-    const { data: conversation, error: conversationError } = await supabase
-      .from('conversations')
-      .insert([{
-        name,
-        type,
-        team_id,
-        hackathon_id,
-        created_by
-      }])
-      .select()
-      .single()
-
-    if (conversationError) {
-      console.error('Error creating conversation:', conversationError)
-      return NextResponse.json({ error: conversationError.message }, { status: 500 })
+    // For team conversations, use the team_id as the conversation identifier
+    if (type === 'team' && team_id) {
+      return NextResponse.json({ id: team_id, name, type, team_id }, { status: 201 })
     }
 
-    // Add participants to the conversation
-    const participantInserts = participants.map((userId: string) => ({
-      conversation_id: conversation.id,
-      user_id: userId
-    }))
+    // For direct conversations, create a unique conversation ID
+    const conversationId = `direct-${created_by}-${participants[0]}`
 
-    const { error: participantsError } = await supabase
-      .from('conversation_participants')
-      .insert(participantInserts)
-
-    if (participantsError) {
-      console.error('Error adding participants:', participantsError)
-      // Clean up the conversation if participants couldn't be added
-      await supabase.from('conversations').delete().eq('id', conversation.id)
-      return NextResponse.json({ error: participantsError.message }, { status: 500 })
-    }
-
-    console.log('Conversation created successfully:', conversation.id)
-    return NextResponse.json(conversation, { status: 201 })
+    return NextResponse.json({ 
+      id: conversationId, 
+      name, 
+      type, 
+      created_by,
+      participants 
+    }, { status: 201 })
   } catch (error) {
     console.error('Create conversation API error:', error)
     return NextResponse.json(
@@ -250,45 +302,9 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Add a small delay to simulate network latency
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    // Try to update in Supabase first
-    try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://demo.supabase.co',
-        process.env.SUPABASE_SERVICE_ROLE_KEY || 'demo-service-key'
-      )
-
-      const { error } = await supabase
-        .from('conversation_participants')
-        .upsert({
-          conversation_id,
-          user_id,
-          last_read_at: new Date().toISOString()
-        }, {
-          onConflict: 'conversation_id,user_id'
-        })
-
-      if (error) {
-        throw error
-      }
-
-      console.log('Messages marked as read in Supabase')
-      return NextResponse.json({ success: true })
-    } catch (supabaseError) {
-      console.error('Supabase error:', supabaseError)
-    }
-
-    // Fallback to mock data system
-    console.log('Using mock data system for read status update')
-    updateConversationReadStatus(conversation_id, user_id)
-    
-    console.log('Messages marked as read in mock system')
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Mark as read API error:', error)
-    // Even if request fails, do not break the UI
     return NextResponse.json({ success: true })
   }
 }

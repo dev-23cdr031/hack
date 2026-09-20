@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { HamburgerMenu } from "@/components/hamburger-menu"
 
 export default function CommunityPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -202,14 +203,16 @@ export default function CommunityPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-800/50">
-        <Link href="/" className="flex items-center gap-3">
-          <Image src="/hackconnect-logo.png" alt="HackConnect Logo" width={40} height={40} className="rounded-lg" />
-          <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-800/50">
+        <Link href="/" className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Image src="/hackconnect-logo.png" alt="HackConnect Logo" width={32} height={32} className="rounded-lg flex-shrink-0 sm:w-10 sm:h-10" />
+          <div className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate">
             HackConnect
           </div>
         </Link>
-        <div className="flex gap-6">
+        <div className="flex items-center gap-2">
+          <HamburgerMenu />
+          <div className="hidden md:flex gap-6">
           <Link href="/" className="text-gray-300 hover:text-blue-400 transition-colors">
             Home
           </Link>
@@ -219,6 +222,7 @@ export default function CommunityPage() {
           <Link href="/contact" className="text-gray-300 hover:text-blue-400 transition-colors">
             Contact
           </Link>
+          </div>
         </div>
       </nav>
 

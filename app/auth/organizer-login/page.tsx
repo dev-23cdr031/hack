@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, LogIn, ArrowLeft, Mail, Lock, AlertCircle, Building } from "lucide-react"
+import { Eye, EyeOff, LogIn, ArrowLeft, Mail, Lock, AlertCircle, Building2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
-export default function TeamLeadLoginPage() {
+export default function OrganizerLoginPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
     email: "",
@@ -56,7 +56,7 @@ export default function TeamLeadLoginPage() {
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
-          userType: "team lead",
+          userType: "organizer",
         }),
       })
 
@@ -72,16 +72,16 @@ export default function TeamLeadLoginPage() {
         // Store user data in localStorage
         localStorage.setItem("user", JSON.stringify(data.user))
         localStorage.setItem("isAuthenticated", "true")
-        localStorage.setItem("userType", "team lead")
+        localStorage.setItem("userType", "organizer")
 
         // Redirect to hackathons page
         router.push("/hackathons")
       } else {
         setError(data.error || "Login failed")
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error)
-      setError("Network error. Please try again.")
+      setError(error.message || "Network error. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -93,31 +93,31 @@ export default function TeamLeadLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-green-900/30 to-black flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-black via-amber-900/30 to-black flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
-            <div className="text-3xl font-bold bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent mb-4">
+            <div className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent mb-4">
               HackConnect
             </div>
           </Link>
-          <h1 className="text-2xl font-bold text-white mb-2">Team Lead Login</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Organizer Login</h1>
           <p className="text-gray-400">Sign in to manage hackathons and events</p>
         </div>
 
         <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-800 shadow-2xl">
           <CardHeader className="space-y-1">
             <div className="flex justify-center mb-4">
-              <div className="p-3 bg-green-500/20 rounded-full">
-                <Building className="w-10 h-10 text-green-400" />
+              <div className="p-3 bg-amber-500/20 rounded-full">
+                <Building2 className="w-10 h-10 text-amber-400" />
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-white text-center">
-              Team Lead Sign In
+              Organizer Sign In
             </CardTitle>
             <CardDescription className="text-gray-400 text-center">
-              Access your team lead dashboard
+              Access your organizer dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -130,10 +130,10 @@ export default function TeamLeadLoginPage() {
               )}
 
               {/* Demo credentials info */}
-              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                <p className="text-green-400 text-sm font-medium mb-2">Demo Credentials:</p>
-                <p className="text-green-300 text-xs">Email: team lead@hackconnect.dev</p>
-                <p className="text-green-300 text-xs">Password: team lead123</p>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+                <p className="text-amber-400 text-sm font-medium mb-2">Demo Credentials:</p>
+                <p className="text-amber-300 text-xs">Email: organizer@hackconnect.dev</p>
+                <p className="text-amber-300 text-xs">Password: organizer123</p>
               </div>
 
               <div className="space-y-2">
@@ -148,7 +148,7 @@ export default function TeamLeadLoginPage() {
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   placeholder="Enter your email"
                   required
-                  className="bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 focus:border-green-500 focus:ring-green-500/20"
+                  className="bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 focus:border-amber-500 focus:ring-amber-500/20"
                 />
               </div>
 
@@ -165,7 +165,7 @@ export default function TeamLeadLoginPage() {
                     onChange={(e) => handleInputChange("password", e.target.value)}
                     placeholder="Enter your password"
                     required
-                    className="bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 focus:border-green-500 focus:ring-green-500/20 pr-10"
+                    className="bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 focus:border-amber-500 focus:ring-amber-500/20 pr-10"
                   />
                   <Button
                     type="button"
@@ -188,13 +188,13 @@ export default function TeamLeadLoginPage() {
                   <input
                     id="remember"
                     type="checkbox"
-                    className="w-4 h-4 text-green-600 bg-gray-800 border-gray-600 rounded focus:ring-green-500 focus:ring-2"
+                    className="w-4 h-4 text-amber-600 bg-gray-800 border-gray-600 rounded focus:ring-amber-500 focus:ring-2"
                   />
                   <Label htmlFor="remember" className="text-sm text-gray-400">
                     Remember me
                   </Label>
                 </div>
-                <Link href="#" className="text-sm text-green-400 hover:text-green-300">
+                <Link href="#" className="text-sm text-amber-400 hover:text-amber-300">
                   Forgot password?
                 </Link>
               </div>
@@ -202,7 +202,7 @@ export default function TeamLeadLoginPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-lg font-medium"
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 text-lg font-medium"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
@@ -221,7 +221,7 @@ export default function TeamLeadLoginPage() {
             <div className="mt-6 text-center">
               <p className="text-gray-400">
                 Don't have an account?{" "}
-                <Link href="/auth/signup" className="text-green-400 hover:text-green-300 font-medium">
+                <Link href="/auth/signup" className="text-amber-400 hover:text-amber-300 font-medium">
                   Sign up
                 </Link>
               </p>
@@ -230,7 +230,7 @@ export default function TeamLeadLoginPage() {
             <div className="mt-6 text-center">
               <Link
                 href="/get-started"
-                className="text-gray-400 hover:text-green-400 text-sm flex items-center justify-center gap-2"
+                className="text-gray-400 hover:text-amber-400 text-sm flex items-center justify-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Get Started

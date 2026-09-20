@@ -136,6 +136,41 @@ export default function TeamDetailsPage() {
     }
   }
 
+  const handleMentorRequest = async () => {
+    if (!id || !currentUser) return
+    
+    try {
+      setRequestingMentorship(true)
+      
+      const res = await fetch(`/api/teams/${id}/request-mentor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          mentor_id: currentUser.id,
+          team_leader_id: team.leader_id,
+          message: mentorRequestMessage || "I'd like to mentor this team"
+        })
+      })
+      
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Failed to submit mentor request')
+      
+      // Refresh team data
+      const teamRes = await fetch(`/api/teams/${id}`)
+      const teamData = await teamRes.json()
+      if (teamRes.ok) {
+        setTeam(teamData.team)
+      }
+      
+      alert('Mentor request submitted successfully! The team leader will review your request.')
+      setShowMentorRequestModal(false)
+    } catch (e: any) {
+      alert(e?.message || 'Failed to submit mentor request')
+    } finally {
+      setRequestingMentorship(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white">
@@ -147,10 +182,47 @@ export default function TeamDetailsPage() {
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-400"/>
             <p className="text-gray-400">Loading team...</p>
           </div>
-        </div>
+             {/* Mentor Request Modal */}
+        {showMentorRequestModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md mx-4 border border-gray-700">
+              <h3 className="text-xl font-bold mb-4">Offer to Mentor This Team</h3>
+              <p className="text-gray-400 mb-4">
+                You're about to submit a request to mentor this team. The team leader will review your request and can approve or decline it.
+              </p>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Message to Team Leader</label>
+                <textarea
+                  value={mentorRequestMessage}
+                  onChange={(e) => setMentorRequestMessage(e.target.value)}
+                  placeholder="Tell the team why you'd be a good mentor for their project..."
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg resize-none h-32 text-white placeholder-gray-400"
+                />
+              </div>
+              
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowMentorRequestModal(false)}
+                  disabled={requestingMentorship}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleMentorRequest}
+                  disabled={requestingMentorship}
+                >
+                  {requestingMentorship ? 'Submitting...' : 'Submit Request'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   if (error || !team) {
     return (
@@ -170,6 +242,19 @@ export default function TeamDetailsPage() {
   const isTeamFull = team.current_members >= team.max_members
   const isTeamCompleted = team.status === 'completed'
   const canJoin = !isTeamFull && !isTeamCompleted
+  
+  // Check if current user is the team leader
+  const isTeamLeader = currentUser?.id === team.leader_id
+  // Check if current user is a mentor
+  const isMentor = currentUser?.role === 'mentor'
+  // Check if team already has a mentor
+  const hasMentor = team.mentor_id && team.mentor_status === 'approved'
+  // Check if there's a pending mentor request
+  const hasPendingMentorRequest = team.mentor_status === 'requested'
+  
+  const [requestingMentorship, setRequestingMentorship] = useState(false)
+  const [mentorRequestMessage, setMentorRequestMessage] = useState("")
+  const [showMentorRequestModal, setShowMentorRequestModal] = useState(false)
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -350,6 +435,30 @@ export default function TeamDetailsPage() {
                 'Join Now'
               )}
             </Button>
+            {/* Mentor request button - only show to mentors who can offer mentorship */}
+            {isMentor && !isMember && !isTeamLeader && !hasMentor && !hasPendingMentorRequest && (
+              <Button 
+                onClick={() => setShowMentorRequestModal(true)} 
+                disabled={requestingMentorship}
+                variant="secondary"
+              >
+                {requestingMentorship ? 'Requesting...' : 'Offer to Mentor This Team'}
+              </Button>
+            )}
+            
+            {/* Show mentor status if team already has a mentor */}
+            {hasMentor && (
+              <Badge variant="secondary" className="bg-green-500/20 text-green-300">
+                🧑‍🏫 Team has a mentor
+              </Badge>
+            )}
+            
+            {/* Show pending mentor request status */}
+            {hasPendingMentorRequest && (
+              <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300">
+                ⏳ Mentor request pending
+              </Badge>
+            )}
           </div>
         </div>
       </div>
@@ -362,6 +471,44 @@ export default function TeamDetailsPage() {
           onJoin={handleJoin}
           joining={joining}
         />
+      )}
+      
+      {/* Mentor Request Modal */}
+      {showMentorRequestModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md mx-4 border border-gray-700">
+            <h3 className="text-xl font-bold mb-4">Offer to Mentor This Team</h3>
+            <p className="text-gray-400 mb-4">
+              You're about to submit a request to mentor this team. The team leader will review your request and can approve or decline it.
+            </p>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">Message to Team Leader</label>
+              <textarea
+                value={mentorRequestMessage}
+                onChange={(e) => setMentorRequestMessage(e.target.value)}
+                placeholder="Tell the team why you'd be a good mentor for their project..."
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg resize-none h-32 text-white placeholder-gray-400"
+              />
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="ghost"
+                onClick={() => setShowMentorRequestModal(false)}
+                disabled={requestingMentorship}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleMentorRequest}
+                disabled={requestingMentorship}
+              >
+                {requestingMentorship ? 'Submitting...' : 'Submit Request'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

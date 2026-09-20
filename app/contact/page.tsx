@@ -56,7 +56,7 @@ export default function ContactPage() {
       </div>
 
       <div className="container mx-auto px-4 py-12">
-        <div className="grid lg:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Contact Form */}
           <Card className="bg-slate-800/50 border-slate-700">
             <CardHeader>

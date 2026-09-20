@@ -419,15 +419,16 @@ export default function DivyaDharshiniPortfolio() {
       </button>
 
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-black/20 backdrop-blur-sm sticky top-0 z-40">
-        <Link href="/about" className="flex items-center gap-2 text-white hover:text-purple-300 transition-colors">
+      <nav className="flex justify-between items-center gap-2 p-4 sm:p-6 md:px-12 bg-black/20 backdrop-blur-sm sticky top-0 z-40">
+        <Link href="/about" className="flex items-center gap-2 text-white hover:text-purple-300 transition-colors text-sm sm:text-base">
           <ArrowLeft className="w-4 h-4" />
-          Back to Team
+          <span className="hidden sm:inline">Back to Team</span>
+          <span className="sm:hidden">Team</span>
         </Link>
-        <div className="flex-1 flex justify-center">
+        <div className="flex-1 flex justify-center min-w-0">
           <Link
             href="/"
-            className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent"
+            className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent truncate"
           >
             HackConnect
           </Link>

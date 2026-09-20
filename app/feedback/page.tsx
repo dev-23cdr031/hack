@@ -425,27 +425,29 @@ export default function FeedbackPage() {
       {/* Header */}
       <div className="sticky top-0 z-40 backdrop-blur-xl bg-black/20 border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="text-gray-400 hover:text-white transition-colors">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+              <Link href="/" className="text-gray-400 hover:text-white transition-colors flex-shrink-0">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <div className="flex items-center gap-3">
-                <MessageSquare className="w-8 h-8 text-purple-400" />
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <MessageSquare className="w-7 h-7 sm:w-8 sm:h-8 text-purple-400 flex-shrink-0" />
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent truncate">
                     Feedback Hub
                   </h1>
-                  <p className="text-sm text-gray-400">Help us improve HackConnect together</p>
+                  <p className="hidden sm:block text-sm text-gray-400">Help us improve HackConnect together</p>
                 </div>
               </div>
             </div>
             <Button
               onClick={() => setShowFeedbackForm(true)}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+              size="sm"
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-2 sm:px-4"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Share Feedback
+              <Sparkles className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Share Feedback</span>
+              <span className="sm:hidden">Feedback</span>
             </Button>
           </div>
         </div>

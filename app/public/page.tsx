@@ -5,15 +5,17 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Home, Users, MessageCircle, User, Globe, Heart } from "lucide-react"
+import { HamburgerMenu } from "@/components/hamburger-menu"
 import type { User as Profile } from "@/lib/types"
 
-const stableStat = (id: string, min: number, range: number) => {
-  const seed = id.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return min + (seed % range)
+interface UserWithStats extends Profile {
+  total_projects?: number
+  hackathons_participated?: number
+  connections?: number
 }
 
 export default function PublicAccessPage() {
-  const [users, setUsers] = useState<Profile[]>([])
+  const [users, setUsers] = useState<UserWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sendingTo, setSendingTo] = useState<string | null>(null)
@@ -25,7 +27,56 @@ export default function PublicAccessPage() {
         const res = await fetch('/api/users?limit=50')
         const data = await res.json()
         if (!res.ok) throw new Error(data?.error || 'Failed to load users')
-        setUsers(Array.isArray(data) ? data : [])
+        const userList = Array.isArray(data) ? data : []
+
+        // Fetch real-time stats for each user
+        const usersWithStats = await Promise.all(userList.map(async (u: any) => {
+          let totalProjects = 0
+          let totalHackathons = 0
+          let totalConnections = 0
+
+          try {
+            const projectsRes = await fetch(`/api/projects?user_id=${u.id}`)
+            if (projectsRes.ok) {
+              const projectsData = await projectsRes.json()
+              totalProjects = Array.isArray(projectsData) ? projectsData.length : (projectsData.projects?.length || 0)
+            }
+          } catch {}
+
+          try {
+            const hackRes = await fetch(`/api/hackathons/registrations?user_id=${u.id}`)
+            if (hackRes.ok) {
+              const hackData = await hackRes.json()
+              totalHackathons = Array.isArray(hackData) ? hackData.length : (hackData.registrations?.length || 0)
+            }
+          } catch {}
+
+          try {
+            const [receivedRes, sentRes] = await Promise.all([
+              fetch(`/api/requests?receiver_id=${u.id}`),
+              fetch(`/api/requests?sender_id=${u.id}`)
+            ])
+            if (receivedRes.ok) {
+              const receivedData = await receivedRes.json()
+              const received = Array.isArray(receivedData) ? receivedData : (receivedData.requests || [])
+              totalConnections += received.filter((r: any) => r.status === 'accepted').length
+            }
+            if (sentRes.ok) {
+              const sentData = await sentRes.json()
+              const sent = Array.isArray(sentData) ? sentData : (sentData.requests || [])
+              totalConnections += sent.filter((r: any) => r.status === 'accepted').length
+            }
+          } catch {}
+
+          return {
+            ...u,
+            total_projects: totalProjects,
+            hackathons_participated: totalHackathons,
+            connections: totalConnections
+          }
+        }))
+
+        setUsers(usersWithStats)
       } catch (e: any) {
         setError(e?.message || 'Failed to load users')
       } finally {
@@ -33,6 +84,7 @@ export default function PublicAccessPage() {
       }
     })()
   }, [])
+
   const sendRequest = async (receiverId: string) => {
     try {
       setSendingTo(receiverId)
@@ -41,35 +93,28 @@ export default function PublicAccessPage() {
       let me = raw ? JSON.parse(raw) : null
       
       if (!me?.id) {
-        // For demo purposes, create a temporary demo user
-        const demoUser = {
-          id: 'demo-user-' + Math.random().toString(36).substr(2, 9),
-          name: 'Demo User',
-          email: 'demo@hackconnect.com'
-        }
-        localStorage.setItem('user', JSON.stringify(demoUser))
-        console.log('Created demo user for connection request')
-        // Use the demo user for the request
-        me = demoUser
+        alert('Please log in first to send connection requests.')
+        window.location.href = '/auth/login'
+        return
       }
       
-      // Simulate successful connection request without network call
-      console.log('Simulating connection request:', { sender_id: me.id, receiver_id: receiverId })
+      const res = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender_id: me.id, receiver_id: receiverId })
+      })
       
-      // Add a small delay to simulate network request
-      await new Promise(resolve => setTimeout(resolve, 800))
+      const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send request')
+      }
       
       alert('✅ Connection request sent successfully!')
       
     } catch (e: any) {
       console.error('Connection request error:', e)
-      
-      // Handle different types of errors gracefully
-      if (e.message?.includes('fetch failed') || e.name === 'TypeError') {
-        alert('Connection issue - but don\'t worry! In a real app, this would work once you\'re logged in.\n\nThis is a demo with mock data.')
-      } else {
-        alert(`Failed to send connection request: ${e?.message || 'Failed to send connection request'}`)
-      }
+      alert(`Failed to send connection request: ${e?.message || 'Failed to send connection request'}`)
     } finally {
       setSendingTo(null)
     }
@@ -78,16 +123,18 @@ export default function PublicAccessPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Nav to keep consistent */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <Link
             href="/"
-            className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+            className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate"
           >
             HackConnect
           </Link>
         </div>
-        <div className="flex gap-6">
+        <div className="flex items-center gap-2">
+          <HamburgerMenu />
+          <div className="hidden lg:flex gap-4 xl:gap-6">
           <Link href="/" className="text-gray-300 hover:text-blue-400 flex items-center gap-2 transition-colors">
             <Home className="w-4 h-4" />
             Home
@@ -112,6 +159,7 @@ export default function PublicAccessPage() {
             <User className="w-4 h-4" />
             Profile
           </Link>
+          </div>
         </div>
       </nav>
 
@@ -121,7 +169,6 @@ export default function PublicAccessPage() {
             <div className="relative translate-y-[2px]">
               <span className="absolute inset-0 rounded-full bg-pink-500/40 blur-md" aria-hidden="true"></span>
               <span className="absolute inset-0 rounded-full animate-ping ring-2 ring-pink-400/70" aria-hidden="true"></span>
-              {/* Shimmer sweep overlay */}
               <span className="pointer-events-none absolute -inset-1 rounded-full overflow-hidden" aria-hidden="true">
                 <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent opacity-70 shimmer-sweep"></span>
               </span>
@@ -264,18 +311,18 @@ export default function PublicAccessPage() {
                     )}
                   </div>
                   
-                  {/* Stats Section - New Addition */}
+                  {/* Stats Section - Real-time data */}
                   <div className="grid grid-cols-3 gap-4 py-2">
                     <div className="text-center">
-                      <div className="text-xl font-bold text-blue-400">{stableStat(u.id, 5, 15)}</div>
+                      <div className="text-xl font-bold text-blue-400">{u.total_projects || 0}</div>
                       <div className="text-xs text-gray-400">Projects</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-xl font-bold text-purple-400">{stableStat(u.id, 2, 8)}</div>
+                      <div className="text-xl font-bold text-purple-400">{u.hackathons_participated || 0}</div>
                       <div className="text-xs text-gray-400">Hackathons</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-xl font-bold text-pink-400">{stableStat(u.id, 20, 50)}</div>
+                      <div className="text-xl font-bold text-pink-400">{u.connections || 0}</div>
                       <div className="text-xs text-gray-400">Connections</div>
                     </div>
                   </div>
@@ -283,7 +330,7 @@ export default function PublicAccessPage() {
                   {/* Action Buttons with Improved Styling */}
                   <div className="flex flex-wrap justify-between gap-3 pt-2">
                     <Button asChild className="flex-1 bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white border border-purple-700 shadow-md hover:shadow-lg transition-all">
-                      <a href="/messages" className="flex items-center justify-center gap-2">
+                      <a href={`/messages?user=${u.id}`} className="flex items-center justify-center gap-2">
                         <MessageCircle className="w-4 h-4"/> 
                         Message
                       </a>

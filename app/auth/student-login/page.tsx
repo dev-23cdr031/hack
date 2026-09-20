@@ -79,9 +79,9 @@ export default function StudentLoginPage() {
       } else {
         setError(data.error || "Login failed")
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error)
-      setError("Network error. Please try again.")
+      setError(error.message || "Network error. Please try again.")
     } finally {
       setLoading(false)
     }

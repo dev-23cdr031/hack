@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -30,6 +30,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { HamburgerMenu } from "@/components/hamburger-menu"
+import { supabase } from "@/lib/supabase"
+import { isAdminEmail } from "@/lib/admin"
 
 interface Judge {
   name: string
@@ -62,6 +64,39 @@ interface ScheduleItem {
 export default function CreateHackathonPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Check authentication on mount
+  useEffect(() => {
+    ;(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setAuthError('Please log in to create a hackathon')
+        setIsAuthenticated(false)
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+
+      const userIsAdmin = isAdminEmail(session.user.email)
+
+      if (!userIsAdmin) {
+        setAuthError('Only the approved admin accounts can create hackathons. Use the admin dashboard to manage them.')
+        setIsAuthenticated(false)
+      } else {
+        setIsAuthenticated(true)
+      }
+    })().catch(() => {
+      setAuthError('Please log in to create a hackathon')
+      setIsAuthenticated(false)
+    })
+  }, [])
   
   // Basic Information
   const [title, setTitle] = useState("")
@@ -190,40 +225,25 @@ export default function CreateHackathonPage() {
     setLoading(true)
 
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Your session has expired. Please sign in again.')
+
       const hackathonData = {
         title,
         description,
         start_date: startDate,
         end_date: endDate,
-        location,
+        location: location || "Virtual",
         type,
-        format,
-        themes,
-        max_participants: maxParticipants ? parseInt(maxParticipants) : undefined,
-        prize_amount: prizeAmount ? parseInt(prizeAmount) : undefined,
-        skill_level: skillLevel,
-        eligibility,
-        rules,
-        schedule,
-        judges,
-        sponsors,
-        faq,
-        resources,
-        status: "upcoming" as const,
-        current_participants: 0
+        max_participants: maxParticipants ? parseInt(maxParticipants) : null,
+        organizer_id: user.id,
+        created_by: user.id,
+        created_by_email: user.email
       }
 
-      const response = await fetch('/api/hackathons', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(hackathonData),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create hackathon')
-      }
+      const { error: insertError } = await supabase.from('hackathons').insert(hackathonData)
+      if (insertError) throw insertError
+      setError(null)
 
       setSuccess(true)
       
@@ -259,18 +279,54 @@ export default function CreateHackathonPage() {
     }
   }
 
+  // Show auth required screen if not authenticated
+  if (isAuthenticated === false) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <div className="w-20 h-20 bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <X className="w-10 h-10 text-red-400" />
+          </div>
+          <h1 className="text-3xl font-bold mb-4">Authentication Required</h1>
+          <p className="text-gray-400 mb-8">
+            {authError || 'Please log in to create a hackathon. Your hackathon will be visible to all users on the Explore page once created.'}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/auth/login">
+              <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
+                Log In
+              </Button>
+            </Link>
+            <Link href="/auth/signup">
+              <Button variant="outline" className="bg-gray-800/50 border-gray-700 text-gray-200 hover:bg-gray-700 w-full sm:w-auto">
+                Sign Up
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (success) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
           <h1 className="text-3xl font-bold mb-2">Hackathon Created Successfully!</h1>
-          <p className="text-gray-400 mb-6">Your hackathon has been created and is now live.</p>
-          <Link href="/hackathons">
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              View All Hackathons
-            </Button>
-          </Link>
+          <p className="text-gray-400 mb-6">Your hackathon has been created and is now live on the Explore page.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/profile">
+              <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
+                View My Created Hackathons
+              </Button>
+            </Link>
+            <Link href="/hackathons">
+              <Button variant="outline" className="bg-gray-800/50 border-gray-700 text-gray-200 hover:bg-gray-700 w-full sm:w-auto">
+                View Explore Page
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     )
@@ -279,23 +335,24 @@ export default function CreateHackathonPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <HamburgerMenu />
           <div className="flex items-center gap-2">
             <Link
               href="/"
-              className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+              className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate"
             >
               HackConnect
             </Link>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-shrink-0">
           <Link href="/hackathons">
-            <Button variant="outline" className="bg-gray-800/50 border-gray-700 text-gray-200 hover:bg-gray-700">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Hackathons
+            <Button variant="outline" size="sm" className="bg-gray-800/50 border-gray-700 text-gray-200 hover:bg-gray-700 px-2 sm:px-4">
+              <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Back to Hackathons</span>
+              <span className="sm:hidden">Back</span>
             </Button>
           </Link>
         </div>

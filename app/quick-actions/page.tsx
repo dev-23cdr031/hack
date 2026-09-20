@@ -295,15 +295,15 @@ export default function QuickActionsPage() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="relative hidden sm:block">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
                   type="text"
                   placeholder="Search actions..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-gray-800 border-gray-600 text-white placeholder-gray-400"
+                  className="pl-10 bg-gray-800 border-gray-600 text-white placeholder-gray-400 w-40 lg:w-60"
                 />
               </div>
               <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">

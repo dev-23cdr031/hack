@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Home, Compass, Filter, Calendar, MapPin, Users, Trophy, MessageCircle, User, Loader2, Globe, Heart, LayoutGrid, LayoutList } from "lucide-react"
+import { Search, Home, Compass, Filter, Calendar, MapPin, Users, Trophy, MessageCircle, User, Loader2, Globe, Heart, LayoutGrid, LayoutList, Plus } from "lucide-react"
 import Link from "next/link"
 import { HamburgerMenu } from "@/components/hamburger-menu"
 import { HackathonCard } from "@/components/hackathon-card"
@@ -437,10 +437,14 @@ export default function HackathonsPage() {
       }
 
       console.log('Fetched hackathons:', data.hackathons?.length || 0)
-      setHackathons(data.hackathons || [])
+      
+      // Use only hackathons from Supabase API
+      const apiHackathons = data.hackathons || []
+      setHackathons(apiHackathons)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load hackathons")
       console.error("Error fetching hackathons:", err)
+      setHackathons([])
     } finally {
       setLoading(false)
     }
@@ -488,6 +492,9 @@ export default function HackathonsPage() {
         }
       } catch {}
 
+      // Registration is saved to Supabase by the join API and will
+      // appear on the admin dashboard's Registrations tab automatically.
+
       alert('Successfully registered!')
       // refresh list to update counts
       fetchHackathons()
@@ -509,20 +516,20 @@ export default function HackathonsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <HamburgerMenu />
           <div className="flex items-center gap-2">
             <Link
               href="/"
-              className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+              className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate"
             >
               HackConnect
             </Link>
 
           </div>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="hidden lg:flex items-center gap-4 xl:gap-6">
           <Link href="/" className="text-gray-300 hover:text-blue-400 flex items-center gap-2 transition-colors">
             <Home className="w-4 h-4" />
             Home
@@ -559,16 +566,18 @@ export default function HackathonsPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Compass className="w-8 h-8 text-blue-400" />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Explore Hackathons
-            </h1>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <Compass className="w-8 h-8 text-blue-400" />
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Explore Hackathons
+              </h1>
+            </div>
+            <p className="text-gray-400 text-lg">
+              Discover amazing hackathons and join the next big innovation challenge
+            </p>
           </div>
-          <p className="text-gray-400 text-lg">
-            Discover amazing hackathons and join the next big innovation challenge
-          </p>
         </div>
 
         {/* Filters */}
@@ -879,12 +888,12 @@ export default function HackathonsPage() {
                     <Trophy className="w-12 h-12 text-gray-600" />
                   </div>
                   <h3 className="text-2xl font-bold mb-4 text-gray-300">
-                    {searchTerm || statusFilter !== "all" || typeFilter !== "all" ? "No Hackathons Found" : "No Hackathons Available"}
+                    {searchTerm || statusFilter !== "all" || typeFilter !== "all" ? "No Hackathons Found" : "No hackathons available right now"}
                   </h3>
                   <p className="text-gray-500 mb-8 leading-relaxed">
                     {searchTerm || statusFilter !== "all" || typeFilter !== "all"
                       ? "Try adjusting your search criteria or filters to find more hackathons."
-                      : "We're working hard to bring you exciting hackathons. Check back soon!"
+                      : "Be the first to create a hackathon and share it with the community!"
                     }
                   </p>
                   {(searchTerm || statusFilter !== "all" || typeFilter !== "all" || locationFilter !== "all" || countryFilter !== "all" || stateFilter !== "all") && (

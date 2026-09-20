@@ -357,40 +357,40 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="sticky top-0 z-40 backdrop-blur-xl bg-black/20 border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="text-gray-400 hover:text-white transition-colors">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+              <Link href="/" className="text-gray-400 hover:text-white transition-colors flex-shrink-0">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Bell className="w-8 h-8 text-purple-400" />
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="relative flex-shrink-0">
+                  <Bell className="w-7 h-7 sm:w-8 sm:h-8 text-purple-400" />
                   {unreadCount > 0 && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                    <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 rounded-full flex items-center justify-center">
                       <span className="text-xs font-bold text-white">{unreadCount}</span>
                     </div>
                   )}
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent">
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent truncate">
                     Notifications
                   </h1>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-xs sm:text-sm text-gray-400 truncate">
                     {notifications.length} total • {unreadCount} unread
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               {unreadCount > 0 && (
                 <Button
                   onClick={markAllAsRead}
                   size="sm"
-                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-2 sm:px-3"
                 >
-                  <CheckCheck className="w-4 h-4 mr-2" />
-                  Mark all read
+                  <CheckCheck className="w-4 h-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Mark all read</span>
                 </Button>
               )}
               <Button

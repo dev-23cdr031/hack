@@ -20,6 +20,7 @@ import {
   HelpCircle,
 } from "lucide-react"
 import Link from "next/link"
+import { HamburgerMenu } from "@/components/hamburger-menu"
 
 export default function FAQPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -202,14 +203,16 @@ export default function FAQPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
         <Link
           href="/"
-          className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+          className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate"
         >
           HackConnect
         </Link>
-        <div className="flex gap-6">
+        <div className="flex items-center gap-2">
+          <HamburgerMenu />
+          <div className="hidden md:flex gap-6">
           <Link href="/" className="text-gray-300 hover:text-blue-400 flex items-center gap-2">
             <Home className="w-4 h-4" />
             Home
@@ -222,6 +225,7 @@ export default function FAQPage() {
             <Phone className="w-4 h-4" />
             Contact
           </Link>
+          </div>
         </div>
       </nav>
 

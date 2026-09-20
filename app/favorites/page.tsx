@@ -185,10 +185,10 @@ export default function FavoritesPage() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 bg-transparent">
-                <Search className="w-4 h-4 mr-2" />
-                Search
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 bg-transparent px-2 sm:px-3">
+                <Search className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Search</span>
               </Button>
               <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
                 <Button

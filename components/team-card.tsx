@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, MessageCircle } from "lucide-react"
+import { Users, MessageCircle, GraduationCap } from "lucide-react"
 import type { Team } from "@/lib/types"
 
 interface TeamCardProps {
@@ -14,9 +14,12 @@ interface TeamCardProps {
   onView?: (teamId: string) => void
   currentUserId?: string
   userRequestStatus?: 'pending' | 'approved' | 'rejected' | null
+  isMentor?: boolean
+  onRequestMentor?: (teamId: string) => void
+  isRequestingMentor?: boolean
 }
 
-export function TeamCard({ team, onJoin, onMessage, onView, currentUserId, userRequestStatus }: TeamCardProps) {
+export function TeamCard({ team, onJoin, onMessage, onView, currentUserId, userRequestStatus, isMentor, onRequestMentor, isRequestingMentor }: TeamCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "forming":
@@ -141,6 +144,36 @@ export function TeamCard({ team, onJoin, onMessage, onView, currentUserId, userR
             <MessageCircle className="w-4 h-4 mr-1" />
             Message
           </Button>
+          
+          {/* Mentor Request Button - Only show if user is a mentor and team doesn't have a mentor yet */}
+          {isMentor && !team.mentor_id && team.mentor_status !== 'requested' && (
+            <Button
+              size="sm"
+              onClick={() => onRequestMentor?.(team.id)}
+              disabled={isRequestingMentor}
+              className="bg-purple-600 hover:bg-purple-700 text-white hidden md:inline-block"
+            >
+              <GraduationCap className="w-4 h-4 mr-1" />
+              {isRequestingMentor ? 'Requesting...' : 'Offer to Mentor'}
+            </Button>
+          )}
+          
+          {/* Show mentor status badge if team already has a mentor */}
+          {team.mentor_id && (
+            <Badge className="bg-purple-500/20 text-purple-400 hidden md:inline-block">
+              <GraduationCap className="w-3 h-3 mr-1" />
+              Has Mentor
+            </Badge>
+          )}
+          
+          {/* Show pending mentor request badge */}
+          {team.mentor_status === 'requested' && !team.mentor_id && (
+            <Badge className="bg-yellow-500/20 text-yellow-400 hidden md:inline-block">
+              <GraduationCap className="w-3 h-3 mr-1" />
+              Mentor Requested
+            </Badge>
+          )}
+          
           {team.max_members - team.current_members > 0 && (
             <>
               {/* Check if user is already a member */}

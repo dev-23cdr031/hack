@@ -311,26 +311,28 @@ export default function CalendarPage() {
       <div className="bg-gray-900/50 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 sm:gap-4 min-w-0">
               <HamburgerMenu />
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-600 rounded-lg">
-                  <CalendarIcon className="w-6 h-6 text-white" />
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="p-1.5 sm:p-2 bg-blue-600 rounded-lg flex-shrink-0">
+                  <CalendarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div>
-                  <h1 className="text-xl font-bold text-white">Calendar</h1>
-                  <p className="text-sm text-gray-400">Manage your events and deadlines</p>
+                <div className="min-w-0">
+                  <h1 className="text-lg sm:text-xl font-bold text-white truncate">Calendar</h1>
+                  <p className="hidden sm:block text-sm text-gray-400">Manage your events and deadlines</p>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 bg-transparent" onClick={() => setSearchOpen((v) => !v)}>
-                <Search className="w-4 h-4 mr-2" />
-                {searchOpen ? "Close" : "Search"}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 bg-transparent px-2 sm:px-3" onClick={() => setSearchOpen((v) => !v)}>
+                <Search className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{searchOpen ? "Close" : "Search"}</span>
+                <span className="sm:hidden">{searchOpen ? "✕" : "🔍"}</span>
               </Button>
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => openAdd()}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Event
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 px-2 sm:px-4" onClick={() => openAdd()}>
+                <Plus className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Add Event</span>
+                <span className="sm:hidden">Add</span>
               </Button>
             </div>
           </div>
@@ -357,35 +359,35 @@ export default function CalendarPage() {
             <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1 sm:gap-4">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1))}
-                      className="text-gray-300 hover:text-white"
+                      className="text-gray-300 hover:text-white p-1 sm:p-2"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </Button>
-                    <h2 className="text-2xl font-bold text-white">
+                    <h2 className="text-lg sm:text-2xl font-bold text-white">
                       {monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}
                     </h2>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1))}
-                      className="text-gray-300 hover:text-white"
+                      className="text-gray-300 hover:text-white p-1 sm:p-2"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     {["month", "week", "day"].map((mode) => (
                       <Button
                         key={mode}
                         variant={viewMode === mode ? "default" : "ghost"}
                         size="sm"
                         onClick={() => setViewMode(mode as any)}
-                        className={viewMode === mode ? "bg-blue-600" : "text-gray-300"}
+                        className={`${viewMode === mode ? "bg-blue-600" : "text-gray-300"} text-xs sm:text-sm px-2 sm:px-3`}
                       >
                         {mode.charAt(0).toUpperCase() + mode.slice(1)}
                       </Button>
@@ -397,14 +399,14 @@ export default function CalendarPage() {
                 {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-1 mb-4">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                    <div key={day} className="p-3 text-center text-sm font-medium text-gray-400">
+                    <div key={day} className="p-1 sm:p-3 text-center text-[10px] sm:text-sm font-medium text-gray-400">
                       {day}
                     </div>
                   ))}
                 </div>
                 <div className="grid grid-cols-7 gap-1">
                   {Array.from({ length: getFirstDayOfMonth(selectedDate) }, (_, i) => (
-                    <div key={`empty-${i}`} className="p-3 h-24" />
+                    <div key={`empty-${i}`} className="p-1 sm:p-3 h-12 sm:h-24" />
                   ))}
                   {Array.from({ length: getDaysInMonth(selectedDate) }, (_, i) => {
                     const day = i + 1
@@ -413,15 +415,15 @@ export default function CalendarPage() {
                     return (
                       <div
                         key={day}
-                        className="p-2 h-24 border border-gray-700 rounded-lg hover:bg-gray-700/30 transition-all duration-200 cursor-pointer group"
+                        className="p-0.5 sm:p-2 h-12 sm:h-24 border border-gray-700 rounded sm:rounded-lg hover:bg-gray-700/30 transition-all duration-200 cursor-pointer group overflow-hidden"
                         onClick={() => openAdd(thisDate)}
                       >
-                        <div className="text-sm text-white font-medium mb-1">{day}</div>
+                        <div className="text-xs sm:text-sm text-white font-medium mb-0.5 sm:mb-1">{day}</div>
                         <div className="space-y-1">
                           {dayList.slice(0, 2).map((event, idx) => (
                             <div
                               key={idx}
-                              className={`text-xs px-2 py-1 rounded text-white truncate ${event.color || colorForType(event.type)} opacity-80 group-hover:opacity-100 transition-opacity`}
+                              className={`text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded text-white truncate ${event.color || colorForType(event.type)} opacity-80 group-hover:opacity-100 transition-opacity hidden sm:block`}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setSelectedEvent(event)
@@ -431,8 +433,11 @@ export default function CalendarPage() {
                               {event.title}
                             </div>
                           ))}
+                          {dayList.length > 0 && (
+                            <div className="sm:hidden text-[10px] text-gray-400">•{dayList.length}</div>
+                          )}
                           {dayList.length > 2 && (
-                            <div className="text-xs text-gray-400">+{dayList.length - 2} more</div>
+                            <div className="hidden sm:block text-xs text-gray-400">+{dayList.length - 2} more</div>
                           )}
                         </div>
                       </div>
