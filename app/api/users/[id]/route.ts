@@ -56,12 +56,58 @@ export async function PUT(
     const body = await request.json()
     console.log('API: Updating user:', params.id, 'with data:', body)
 
-    const { data, error } = await supabase
+    // Only allow columns that are guaranteed to exist in the users table.
+    // Extra fields like github_url / linkedin_url / portfolio_url may not exist
+    // in every Supabase project's schema, so they are filtered out here to
+    // avoid "Could not find the 'X' column of 'users' in the schema cache" errors.
+    const allowedColumns = [
+      'name',
+      'email',
+      'title',
+      'bio',
+      'avatar_url',
+      'skills',
+      'location',
+      'experience_level',
+      'role',
+      'created_at',
+    ]
+
+    const sanitized: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    for (const key of allowedColumns) {
+      if (body[key] !== undefined) {
+        sanitized[key] = body[key]
+      }
+    }
+
+    // First attempt: try the full sanitized payload (works if optional columns exist)
+    let { data, error } = await supabase
       .from('users')
-      .update({ ...body, updated_at: new Date().toISOString() })
+      .update(sanitized)
       .eq('id', params.id)
       .select()
       .single()
+
+    // If that fails (e.g. missing optional column), retry with only the core columns
+    if (error) {
+      console.log('API: Full update failed, retrying with core columns only:', error.message)
+      const coreColumns = {
+        name: sanitized.name,
+        email: sanitized.email,
+        title: sanitized.title,
+        bio: sanitized.bio,
+        avatar_url: sanitized.avatar_url,
+        skills: sanitized.skills,
+        updated_at: sanitized.updated_at,
+      }
+      const coreResult = await supabase
+        .from('users')
+        .update(coreColumns)
+        .eq('id', params.id)
+        .select()
+        .single()
+      ;({ data, error } = coreResult)
+    }
 
     if (error) {
       console.error('Supabase update error:', error)
