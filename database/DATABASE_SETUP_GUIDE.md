@@ -33,9 +33,9 @@ If your `teams` table is missing detail columns, run `scripts/14-add-team-detail
 ### 3. Verify Environment Variables
 Make sure your `.env.local` file contains:
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://sdvymgpugilsreqhovwt.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkdnltZ3B1Z2lsc3JlcWhvdnd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NzI0MjksImV4cCI6MjA3MDI0ODQyOX0.YOUR_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkdnltZ3B1Z2lsc3JlcWhvdnd0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDY3MjQyOSwiZXhwIjoyMDcwMjQ4NDI5fQ.VQBtl62lpq1frvgeASr7BJs6kb-7Q9PkB2cxmVy7ZJk
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_publishable_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
 
 ### 4. Restart Development Server
