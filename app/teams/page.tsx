@@ -258,8 +258,8 @@ export default function TeamsPage() {
       setTeams(allTeams)
 
       // Fetch user request statuses if user is logged in
-      if (currentUser && deduped) {
-        await fetchUserRequestStatuses(deduped)
+      if (currentUser && allTeams) {
+        await fetchUserRequestStatuses(allTeams)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load teams")
