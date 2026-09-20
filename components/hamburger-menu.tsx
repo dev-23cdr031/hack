@@ -71,6 +71,7 @@ export function HamburgerMenu() {
         { icon: Home, label: "Home", href: "/", description: "Back to homepage" },
         { icon: Compass, label: "Explore", href: "/hackathons", description: "Discover hackathons" },
         ...(isAdmin ? [{ icon: Plus, label: "Create Hackathon", href: "/admin", description: "Create hackathons from the admin dashboard" }] : []),
+        { icon: Globe, label: "Public Access", href: "/public", description: "Browse public user profiles" },
         { icon: Users, label: "Teams", href: "/teams", description: "Find or create teams" },
         { icon: MessageCircle, label: "Messages", href: "/messages", description: "Chat with teammates" },
         { icon: Calendar, label: "Meetings", href: "/meetings", description: "View all meetings" },
