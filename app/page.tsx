@@ -61,7 +61,7 @@ export default function HomePage() {
       <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-800/50">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Image
-            src="/hackconnect-logo.svg"
+            src="/hackconnect-logo-new.png"
             alt="HackConnect Logo"
             width={36}
             height={36}
@@ -313,7 +313,7 @@ export default function HomePage() {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <Image
-                  src="/hackconnect-logo.svg"
+                  src="/hackconnect-logo-new.png"
                   alt="HackConnect Logo"
                   width={40}
                   height={40}

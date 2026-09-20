@@ -137,7 +137,7 @@ export default function HelpPage() {
       {/* Navigation */}
       <nav className="flex justify-between items-center p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-800/50">
         <Link href="/" className="flex items-center gap-3">
-          <Image src="/hackconnect-logo.png" alt="HackConnect Logo" width={40} height={40} className="rounded-lg" />
+          <Image src="/hackconnect-logo-new.png" alt="HackConnect Logo" width={40} height={40} className="rounded-lg" />
           <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             HackConnect
           </div>

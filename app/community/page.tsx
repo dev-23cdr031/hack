@@ -205,7 +205,7 @@ export default function CommunityPage() {
       {/* Navigation */}
       <nav className="flex justify-between items-center gap-3 p-4 sm:p-6 md:px-12 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-800/50">
         <Link href="/" className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <Image src="/hackconnect-logo.png" alt="HackConnect Logo" width={32} height={32} className="rounded-lg flex-shrink-0 sm:w-10 sm:h-10" />
+          <Image src="/hackconnect-logo-new.png" alt="HackConnect Logo" width={32} height={32} className="rounded-lg flex-shrink-0 sm:w-10 sm:h-10" />
           <div className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent truncate">
             HackConnect
           </div>
