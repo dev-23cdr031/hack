@@ -12,18 +12,18 @@ import Image from "next/image"
 export default function AboutPage() {
   const teamMembers = [
     {
-      name: "Divya Dharshini",
-      role: "Founder",
-      bio: "A passionate and dedicated professional eager to learn, innovate, and contribute to impactful projects.",
-      avatar: "/team/divya-dharshini.jpg",
-      portfolioUrl: "/portfolio/divya-dharshini",
-    },
-    {
       name: "Dev Dharrshan",
-      role: "Co Founder",
+      role: "Founder",
       bio: "Experienced backend developer specializing in scalable systems and API development.",
       avatar: "/team/dev-dharrshan.jpg",
       portfolioUrl: "/portfolio/dev-dharrshan",
+    },
+    {
+      name: "Divya Dharshini",
+      role: "Co Founder",
+      bio: "A passionate and dedicated professional eager to learn, innovate, and contribute to impactful projects.",
+      avatar: "/team/divya-dharshini.jpg",
+      portfolioUrl: "/portfolio/divya-dharshini",
     },
     {
       name: "Anusree",
@@ -126,7 +126,7 @@ export default function AboutPage() {
           </p>
           <div className="mb-8 flex items-center justify-center gap-2 text-blue-300">
             <MapPin className="w-5 h-5" />
-            <span>KEC, Erode Tamilnadu</span>
+            <span>Virudhunagar, Tamilnadu</span>
           </div>
           <div className="flex justify-center">
             <Image
@@ -136,6 +136,28 @@ export default function AboutPage() {
               height={400}
               className="rounded-lg shadow-2xl"
             />
+          </div>
+
+          {/* Location Map */}
+          <div className="mt-8 bg-gray-900/50 border border-gray-800 rounded-2xl p-4 sm:p-6 text-left">
+            <div className="mb-4 flex items-center gap-2 text-blue-300">
+              <MapPin className="w-5 h-5" />
+              <span className="font-semibold text-white">Our Location</span>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-gray-800 w-full h-[320px] sm:h-[400px]">
+              <iframe
+                title="HackConnect Location - Virudhunagar"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=77.9486%2C9.5730%2C77.9986%2C9.6400&layer=mapnik&marker=9.5889%2C77.9736"
+                width="100%"
+                height="100%"
+                style={{ border: 0, display: "block", width: "100%", height: "100%" }}
+                loading="lazy"
+                allowFullScreen
+              />
+            </div>
+            <p className="mt-4 text-sm text-gray-400">
+              <span className="font-medium text-white">HackConnect HQ</span> — Virudhunagar, Tamilnadu, India
+            </p>
           </div>
         </div>
       </section>

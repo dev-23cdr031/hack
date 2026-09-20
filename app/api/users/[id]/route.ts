@@ -70,7 +70,6 @@ export async function PUT(
       'location',
       'experience_level',
       'role',
-      'created_at',
     ]
 
     const sanitized: Record<string, unknown> = { updated_at: new Date().toISOString() }
@@ -80,18 +79,23 @@ export async function PUT(
       }
     }
 
+    // Helper to perform the actual update and return { data, error }
+    const performUpdate = async (payload: Record<string, unknown>) => {
+      return supabase
+        .from('users')
+        .update(payload)
+        .eq('id', params.id)
+        .select()
+        .maybeSingle()
+    }
+
     // First attempt: try the full sanitized payload (works if optional columns exist)
-    let { data, error } = await supabase
-      .from('users')
-      .update(sanitized)
-      .eq('id', params.id)
-      .select()
-      .single()
+    let { data, error } = await performUpdate(sanitized)
 
     // If that fails (e.g. missing optional column), retry with only the core columns
     if (error) {
       console.log('API: Full update failed, retrying with core columns only:', error.message)
-      const coreColumns = {
+      const coreColumns: Record<string, unknown> = {
         name: sanitized.name,
         email: sanitized.email,
         title: sanitized.title,
@@ -100,18 +104,46 @@ export async function PUT(
         skills: sanitized.skills,
         updated_at: sanitized.updated_at,
       }
-      const coreResult = await supabase
+      ;({ data, error } = await performUpdate(coreColumns))
+    }
+
+    // If the user row does not exist yet (0 rows matched), upsert to create it.
+    if (!error && !data) {
+      console.log('API: No existing user row found for', params.id, '- upserting profile')
+      const upsertPayload: Record<string, unknown> = {
+        id: params.id,
+        email: sanitized.email || body.email || '',
+        name: sanitized.name || body.name || 'User',
+        title: sanitized.title || '',
+        bio: sanitized.bio || '',
+        avatar_url: sanitized.avatar_url || '/placeholder-user.jpg',
+        skills: sanitized.skills || [],
+        updated_at: sanitized.updated_at,
+        created_at: new Date().toISOString(),
+      }
+      // Include any sanitized optional fields that made it through
+      for (const key of ['location', 'experience_level', 'role']) {
+        if (sanitized[key] !== undefined) {
+          upsertPayload[key] = sanitized[key]
+        }
+      }
+
+      const upsertResult = await supabase
         .from('users')
-        .update(coreColumns)
-        .eq('id', params.id)
+        .upsert(upsertPayload)
         .select()
-        .single()
-      ;({ data, error } = coreResult)
+        .maybeSingle()
+      ;({ data, error } = upsertResult)
     }
 
     if (error) {
       console.error('Supabase update error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    if (!data) {
+      console.error('API: No user row returned after update for', params.id)
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     console.log('API: User updated in Supabase:', data.name)
