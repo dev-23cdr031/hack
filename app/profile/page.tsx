@@ -34,6 +34,7 @@ import {
   GraduationCap,
   Building,
   Trophy,
+  Trash2,
   Users,
   Star,
   TrendingUp,
