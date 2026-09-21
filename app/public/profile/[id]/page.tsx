@@ -13,6 +13,16 @@ type PublicProfile = Profile & {
   hackathons_participated?: number
   skill_endorsements?: number
   total_projects?: number
+  education?: {
+    id?: string
+    institution?: string
+    degree?: string
+    field?: string
+    startYear?: number
+    endYear?: number
+    grade?: string
+    description?: string
+  }[]
 }
 
 export default function PublicProfilePage() {
@@ -324,6 +334,39 @@ export default function PublicProfilePage() {
                 <p className="text-gray-500 italic">No skills listed yet.</p>
               )}
             </section>
+
+            {Array.isArray(user.education) && user.education.length > 0 && (
+              <section className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 border border-gray-700 rounded-xl p-6">
+                <h2 className="text-2xl font-bold text-white mb-4 flex items-center">
+                  <GraduationCap className="w-5 h-5 mr-2 text-blue-400" />
+                  Education
+                </h2>
+                <div className="space-y-4">
+                  {user.education.map((edu: any, idx: number) => (
+                    <div key={idx} className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-800/40 bg-gradient-to-br from-blue-900/50 to-purple-900/50">
+                        <GraduationCap className="h-5 w-5 text-blue-300" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-white">{edu.institution}</div>
+                        {(edu.degree || edu.field) && (
+                          <div className="text-sm text-gray-400">
+                            {[edu.degree, edu.field].filter(Boolean).join(" · ")}
+                          </div>
+                        )}
+                        {(edu.startYear || edu.endYear) && (
+                          <div className="text-xs text-gray-500">
+                            {[edu.startYear, edu.endYear].filter(Boolean).join(" – ")}
+                          </div>
+                        )}
+                        {edu.grade && <div className="text-xs text-gray-400">Grade: {edu.grade}</div>}
+                        {edu.description && <p className="mt-1 text-sm text-gray-300">{edu.description}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {Array.isArray(user.hackathon_interests) && user.hackathon_interests.length > 0 && (
               <section className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 border border-gray-700 rounded-xl p-6">

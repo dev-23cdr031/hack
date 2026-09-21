@@ -13,6 +13,16 @@ interface UserWithStats extends Profile {
   total_projects?: number
   hackathons_participated?: number
   connections?: number
+  education?: {
+    id?: string
+    institution?: string
+    degree?: string
+    field?: string
+    startYear?: number
+    endYear?: number
+    grade?: string
+    description?: string
+  }[]
 }
 
 export default function PublicAccessPage() {
@@ -405,18 +415,39 @@ export default function PublicAccessPage() {
                       <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-gray-900 rounded-full"></span>
                     </div>
                     
-                    <div>
-                      <div className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">{u.name}</div>
-                      <div className="text-sm text-gray-400">{u.title || u.email}</div>
+                    <div className="min-w-0">
+                      <div className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors truncate">{u.name}</div>
+                      <div className="text-sm text-gray-400 truncate">{u.title || u.email}</div>
+
+                      {/* Education / College - shown big so everyone sees where the user studies */}
+                      {(() => {
+                        const eduList = Array.isArray(u.education) ? u.education : []
+                        const first = eduList[0]
+                        const institution = (first?.institution && first.institution.trim()) || u.college || ""
+                        if (!institution) return null
+                        const detail = [first?.degree, first?.field].filter(Boolean).join(" · ")
+                        const years = [first?.startYear, first?.endYear].filter(Boolean).join(" – ")
+                        const suffix = years ? ` (${years})` : ""
+                        return (
+                          <>
+                            <div className="mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-lg border border-blue-700/40 bg-gradient-to-r from-blue-900/40 to-purple-900/40 px-3 py-1">
+                              <GraduationCap className="h-4 w-4 shrink-0 text-blue-400" />
+                              <span className="truncate text-base sm:text-lg font-bold text-blue-300">{institution}</span>
+                            </div>
+                            {detail && (
+                              <div className="mt-1 truncate text-xs text-gray-400">
+                                {detail}
+                                {suffix}
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
+
                       {u.username && (
                         <div className="text-xs text-purple-400/80 mt-0.5">@{u.username}</div>
                       )}
-                      {u.college && (
-                        <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                          <GraduationCap className="w-3 h-3 inline" /> {u.college}
-                        </div>
-                      )}
-                      
+
                       {/* Availability Badge */}
                       <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/50 text-blue-300 border border-blue-800">
                         <span className="w-2 h-2 bg-blue-400 rounded-full mr-1.5 animate-pulse"></span>
