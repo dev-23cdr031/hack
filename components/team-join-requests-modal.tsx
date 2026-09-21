@@ -103,8 +103,9 @@ export function TeamJoinRequestsModal({
       const data = await response.json()
 
       if (response.ok) {
-        console.log('Join requests fetched:', data.length)
-        setRequests(data.filter((req: TeamJoinRequest) => req.status === 'pending'))
+        console.log('Join requests fetched:', data)
+        const list = Array.isArray(data) ? data : (data?.requests || [])
+        setRequests(list.filter((req: TeamJoinRequest) => req.status === 'pending'))
       } else {
         console.error('Failed to fetch join requests:', data.error)
         // Mock data for demo

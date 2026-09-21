@@ -47,8 +47,36 @@ export default function FindTeamsPage() {
     return matchesSearch && matchesSkill && matchesStatus
   })
 
-  const handleJoinTeam = (teamId: string) => {
-    alert(`Joined team ${teamId}! (Demo)`)
+  const handleJoinTeam = async (teamId: string) => {
+    try {
+      let user = null
+      try {
+        const raw = localStorage.getItem('user')
+        if (raw) user = JSON.parse(raw)
+      } catch {}
+
+      if (!user?.id) {
+        alert('Please log in to request to join a team')
+        window.location.href = '/auth/login'
+        return
+      }
+
+      const message = prompt('Why would you like to join this team? (Optional message for the team leader):')
+      if (message === null) return
+
+      const res = await fetch(`/api/teams/${encodeURIComponent(teamId)}/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, message: message || '' })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Failed to submit join request')
+
+      alert('Join request submitted! The team leader will review your request.')
+    } catch (e: any) {
+      alert(e?.message || 'Failed to submit join request')
+    }
   }
 
   const handleMessageTeam = (teamId: string) => {

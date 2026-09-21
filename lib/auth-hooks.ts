@@ -27,14 +27,27 @@ export function useUser() {
           return
         }
         
-        // Get the user profile data
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
+        // Get the user profile data (users table is HackConnect's profile store)
+        let profile: any = null
+        const { data: userProfile, error: profileError } = await supabase
+          .from('users')
           .select('*')
           .eq('id', session.user.id)
-          .single()
-        
-        if (profileError) {
+          .maybeSingle()
+
+        if (!profileError && userProfile) {
+          profile = userProfile
+        } else {
+          // Fall back to the profiles table (kept in sync by a DB trigger)
+          const { data: legacyProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle()
+          if (legacyProfile) profile = legacyProfile
+        }
+
+        if (!profile) {
           console.error('Error fetching user profile:', profileError)
           // Still set the basic user from auth
           setUser({
@@ -53,19 +66,22 @@ export function useUser() {
           })
           return
         }
-        
+
         // Combine auth and profile data
         setUser({
           id: session.user.id,
-          email: session.user.email || '',
-          name: profile.full_name || session.user.user_metadata?.full_name || 'User',
+          email: session.user.email || profile.email || '',
+          name: profile.full_name || profile.name || session.user.user_metadata?.full_name || 'User',
+          username: profile.username || '',
           avatar_url: profile.avatar_url || session.user.user_metadata?.avatar_url || '',
           bio: profile.bio || '',
           title: profile.title || '',
           skills: profile.skills || [],
+          college: profile.college || '',
+          hackathon_interests: profile.hackathon_interests || [],
           github_url: profile.github_url || '',
           linkedin_url: profile.linkedin_url || '',
-          portfolio_url: profile.website_url || '',
+          portfolio_url: profile.website_url || profile.portfolio_url || '',
           created_at: profile.created_at || new Date().toISOString(),
           updated_at: profile.updated_at || new Date().toISOString(),
         })

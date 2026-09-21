@@ -92,6 +92,14 @@ export async function POST(request: NextRequest) {
 
       const publicUrl = `/uploads/avatars/${fileName}`
       
+      // Persist the new avatar URL to the database so other users see it.
+      try {
+        const supabase = createServerSupabaseClient()
+        await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', userId)
+      } catch (dbErr) {
+        console.error('Failed to persist local avatar URL:', dbErr)
+      }
+
       console.log('Successfully saved to local storage:', publicUrl)
 
       // For fallback, we'll return a mock URL since we can't update the database

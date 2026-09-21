@@ -19,6 +19,7 @@ interface EditProfileModalProps {
 export function EditProfileModal({ user, onClose, onSave }: EditProfileModalProps) {
   const [formData, setFormData] = useState({
     name: user.name,
+    username: user.username || '',
     title: user.title || '',
     bio: user.bio || '',
     avatar_url: user.avatar_url || '',
@@ -26,9 +27,11 @@ export function EditProfileModal({ user, onClose, onSave }: EditProfileModalProp
     linkedin_url: user.linkedin_url || '',
     portfolio_url: user.portfolio_url || '',
     location: user.location || '',
+    college: user.college || '',
     experience_level: user.experience_level || 'beginner',
     role: user.role || 'student',
-    skills: user.skills?.join(', ') || ''
+    skills: user.skills?.join(', ') || '',
+    hackathonInterests: user.hackathon_interests?.join(', ') || ''
   })
 
   const [loading, setLoading] = useState(false)
@@ -42,9 +45,15 @@ export function EditProfileModal({ user, onClose, onSave }: EditProfileModalProp
         .split(',')
         .map(s => s.trim())
         .filter(Boolean)
+
+      const interestsArray = formData.hackathonInterests
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
       
       await onSave({
         name: formData.name,
+        username: formData.username.trim() || undefined,
         title: formData.title,
         bio: formData.bio,
         avatar_url: formData.avatar_url,
@@ -52,9 +61,11 @@ export function EditProfileModal({ user, onClose, onSave }: EditProfileModalProp
         linkedin_url: formData.linkedin_url,
         portfolio_url: formData.portfolio_url,
         location: formData.location,
+        college: formData.college.trim() || undefined,
         experience_level: formData.experience_level,
         role: formData.role,
-        skills: skillsArray
+        skills: skillsArray,
+        hackathon_interests: interestsArray
       })
     } finally {
       setLoading(false)
@@ -108,6 +119,32 @@ export function EditProfileModal({ user, onClose, onSave }: EditProfileModalProp
                   value={formData.title}
                   onChange={handleChange}
                   placeholder="e.g. Full Stack Developer"
+                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="username" className="text-gray-200">Username</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="e.g. dev_dharrshan"
+                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="college" className="text-gray-200">College / Organization</Label>
+                <Input
+                  id="college"
+                  name="college"
+                  value={formData.college}
+                  onChange={handleChange}
+                  placeholder="e.g. Kongu Engineering College"
                   className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
                 />
               </div>
@@ -176,6 +213,18 @@ export function EditProfileModal({ user, onClose, onSave }: EditProfileModalProp
                 value={formData.skills}
                 onChange={handleChange}
                 placeholder="e.g. JavaScript, React, Node.js"
+                className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="hackathonInterests" className="text-gray-200">Hackathon Interests (comma separated)</Label>
+              <Input
+                id="hackathonInterests"
+                name="hackathonInterests"
+                value={formData.hackathonInterests}
+                onChange={handleChange}
+                placeholder="e.g. AI/ML, Open Source, Web3"
                 className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
               />
             </div>

@@ -201,12 +201,11 @@ export default function TeamsPage() {
         try {
           const requestsResponse = await fetch(`/api/teams/${team.id}/requests`)
           const requestsResult = await requestsResponse.json()
-          const pendingRequests = requestsResult.filter((req: any) => req.status === 'pending')
+          const requestList = Array.isArray(requestsResult) ? requestsResult : (requestsResult?.requests || [])
+          const pendingRequests = requestList.filter((req: any) => req.status === 'pending')
           totalPending += pendingRequests.length
         } catch (err) {
           console.error(`Error fetching requests for team ${team.id}:`, err)
-          // Add mock data for demo
-          totalPending += 2 // Demo pending requests
         }
       }
       

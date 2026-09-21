@@ -88,40 +88,35 @@ export default function TeamDetailsPage() {
         // If there's an error parsing, we'll handle it with the check below
       }
       
-      // For demo purposes, if no user is found, create a mock user
+      // Require a real logged-in user (no fake/demo ids for join requests).
       if (!user?.id) {
-        // In a real app, you would redirect to login
-        // For this demo, we'll create a mock user
-        user = {
-          id: "demo-user-" + Math.random().toString(36).substring(2, 8),
-          name: "Demo User",
-          email: "demo@example.com"
-        }
-        
-        // Store the mock user in localStorage for future use
-        localStorage.setItem('user', JSON.stringify(user))
+        alert('Please log in to request to join a team')
+        window.location.href = '/auth/login'
+        return
       }
-      
-      const res = await fetch(`/api/teams/${id}/join`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ user_id: user.id }) 
+
+      // The request is stored in Supabase and must be approved by the
+      // team leader (creator) on the Accept Requests page.
+      const res = await fetch(`/api/teams/${id}/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, message: "I'd like to join your team!" })
       })
-      
+
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || 'Join failed')
-      
+      if (!res.ok) throw new Error(data?.error || 'Join request failed')
+
       // Refresh the team data
       const teamRes = await fetch(`/api/teams/${id}`)
       const teamData = await teamRes.json()
       if (teamRes.ok) {
         setTeam(teamData.team)
       }
-      
+
       // Show success message
-      alert('Joined team successfully!')
+      alert('Join request submitted! The team leader will review your request.')
     } catch (e: any) {
-      alert(e?.message || 'Join failed')
+      alert(e?.message || 'Join request failed')
     } finally {
       setJoining(false)
     }

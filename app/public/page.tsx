@@ -4,8 +4,9 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Home, Users, MessageCircle, User, Globe, Heart } from "lucide-react"
+import { Home, Users, MessageCircle, User, Globe, Heart, Search, GraduationCap, Sparkles } from "lucide-react"
 import { HamburgerMenu } from "@/components/hamburger-menu"
+import { supabase, getAuthHeaders } from "@/lib/supabase"
 import type { User as Profile } from "@/lib/types"
 
 interface UserWithStats extends Profile {
@@ -19,71 +20,159 @@ export default function PublicAccessPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sendingTo, setSendingTo] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
+  // Search & filtering
+  const [searchTerm, setSearchTerm] = useState("")
+  const [skillsFilter, setSkillsFilter] = useState("")
+  const [collegeFilter, setCollegeFilter] = useState("")
+  const [interestFilter, setInterestFilter] = useState("")
+
+  // Load discovered users from the real Supabase profiles table
+  const fetchUsers = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const headers = await getAuthHeaders()
+      if (!headers.Authorization) {
+        // Users must be authenticated to access the Explore / Public page
+        window.location.href = "/auth/login"
+        return
+      }
+
+      const params = new URLSearchParams({ limit: "100" })
+      if (searchTerm.trim()) params.set("search", searchTerm.trim())
+      if (skillsFilter) params.set("skills", skillsFilter)
+      if (collegeFilter) params.set("college", collegeFilter)
+      if (interestFilter) params.set("interest", interestFilter)
+      if (currentUserId) params.set("exclude_id", currentUserId)
+
+      const res = await fetch(`/api/users?${params.toString()}`, { headers })
+
+      if (res.status === 401) {
+        window.location.href = "/auth/login"
+        return
+      }
+      if (!res.ok) throw new Error("Failed to load users")
+
+      const data = await res.json()
+      const userList = Array.isArray(data) ? data : []
+
+      // Fetch real-time stats for each user
+      const usersWithStats = await Promise.all(userList.map(async (u: any) => {
+        let totalProjects = 0
+        let totalHackathons = 0
+        let totalConnections = 0
+
+        try {
+          const projectsRes = await fetch(`/api/projects?user_id=${u.id}`)
+          if (projectsRes.ok) {
+            const projectsData = await projectsRes.json()
+            totalProjects = Array.isArray(projectsData) ? projectsData.length : (projectsData.projects?.length || 0)
+          }
+        } catch {}
+
+        try {
+          const hackRes = await fetch(`/api/hackathons/registrations?user_id=${u.id}`)
+          if (hackRes.ok) {
+            const hackData = await hackRes.json()
+            totalHackathons = Array.isArray(hackData) ? hackData.length : (hackData.registrations?.length || 0)
+          }
+        } catch {}
+
+        try {
+          const [receivedRes, sentRes] = await Promise.all([
+            fetch(`/api/requests?receiver_id=${u.id}`),
+            fetch(`/api/requests?sender_id=${u.id}`)
+          ])
+          if (receivedRes.ok) {
+            const receivedData = await receivedRes.json()
+            const received = Array.isArray(receivedData) ? receivedData : (receivedData.requests || [])
+            totalConnections += received.filter((r: any) => r.status === 'accepted').length
+          }
+          if (sentRes.ok) {
+            const sentData = await sentRes.json()
+            const sent = Array.isArray(sentData) ? sentData : (sentData.requests || [])
+            totalConnections += sent.filter((r: any) => r.status === 'accepted').length
+          }
+        } catch {}
+
+        return {
+          ...u,
+          total_projects: totalProjects,
+          hackathons_participated: totalHackathons,
+          connections: totalConnections
+        }
+      }))
+
+      setUsers(usersWithStats)
+    } catch (e: any) {
+      setError(e?.message || "Failed to load users")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Auth guard: this page is for registered users only.
   useEffect(() => {
     ;(async () => {
       try {
-        setLoading(true)
-        const res = await fetch('/api/users?limit=50')
-        const data = await res.json()
-        if (!res.ok) throw new Error(data?.error || 'Failed to load users')
-        const userList = Array.isArray(data) ? data : []
-
-        // Fetch real-time stats for each user
-        const usersWithStats = await Promise.all(userList.map(async (u: any) => {
-          let totalProjects = 0
-          let totalHackathons = 0
-          let totalConnections = 0
-
-          try {
-            const projectsRes = await fetch(`/api/projects?user_id=${u.id}`)
-            if (projectsRes.ok) {
-              const projectsData = await projectsRes.json()
-              totalProjects = Array.isArray(projectsData) ? projectsData.length : (projectsData.projects?.length || 0)
-            }
-          } catch {}
-
-          try {
-            const hackRes = await fetch(`/api/hackathons/registrations?user_id=${u.id}`)
-            if (hackRes.ok) {
-              const hackData = await hackRes.json()
-              totalHackathons = Array.isArray(hackData) ? hackData.length : (hackData.registrations?.length || 0)
-            }
-          } catch {}
-
-          try {
-            const [receivedRes, sentRes] = await Promise.all([
-              fetch(`/api/requests?receiver_id=${u.id}`),
-              fetch(`/api/requests?sender_id=${u.id}`)
-            ])
-            if (receivedRes.ok) {
-              const receivedData = await receivedRes.json()
-              const received = Array.isArray(receivedData) ? receivedData : (receivedData.requests || [])
-              totalConnections += received.filter((r: any) => r.status === 'accepted').length
-            }
-            if (sentRes.ok) {
-              const sentData = await sentRes.json()
-              const sent = Array.isArray(sentData) ? sentData : (sentData.requests || [])
-              totalConnections += sent.filter((r: any) => r.status === 'accepted').length
-            }
-          } catch {}
-
-          return {
-            ...u,
-            total_projects: totalProjects,
-            hackathons_participated: totalHackathons,
-            connections: totalConnections
-          }
-        }))
-
-        setUsers(usersWithStats)
-      } catch (e: any) {
-        setError(e?.message || 'Failed to load users')
-      } finally {
-        setLoading(false)
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+          window.location.href = "/auth/login"
+          return
+        }
+        setCurrentUserId(session.user.id)
+      } catch {
+        window.location.href = "/auth/login"
       }
     })()
   }, [])
+
+  // (Debounced) load the users whenever the current user or a filter changes.
+  useEffect(() => {
+    if (!currentUserId) return
+    const timer = setTimeout(() => {
+      fetchUsers()
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, 300)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId, searchTerm, skillsFilter, collegeFilter, interestFilter])
+
+  // Realtime: every newly registered user appears here automatically - no
+  // page rebuild or manual database entry required.
+  useEffect(() => {
+    if (!currentUserId) return
+
+    const channel = supabase
+      .channel("public-profiles-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "users" },
+        (payload: any) => {
+          const row = payload.new as any
+          if (!row || row.id === currentUserId) return
+          fetchUsers()
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "users" },
+        (payload: any) => {
+          const row = payload.new as any
+          if (!row || row.id === currentUserId) return
+          fetchUsers()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId])
 
   const sendRequest = async (receiverId: string) => {
     try {
@@ -203,6 +292,65 @@ export default function PublicAccessPage() {
               <span className="px-4 py-2 rounded-full bg-yellow-900/30 text-yellow-300 border border-yellow-800/50 text-sm">DevOps Engineers</span>
             </div>
           </div>
+
+          {/* Search & Discovery Filters */}
+          <div className="max-w-4xl mx-auto mt-8 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by name, username, college or email..."
+                className="w-full bg-gray-900/70 border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+              />
+            </div>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <select
+                value={skillsFilter}
+                onChange={(e) => setSkillsFilter(e.target.value)}
+                className="bg-gray-900/70 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none"
+              >
+                <option value="">All Skills</option>
+                <option value="React">React</option>
+                <option value="JavaScript">JavaScript</option>
+                <option value="TypeScript">TypeScript</option>
+                <option value="Python">Python</option>
+                <option value="Node.js">Node.js</option>
+                <option value="Machine Learning">Machine Learning</option>
+                <option value="Data Science">Data Science</option>
+                <option value="UI/UX">UI/UX</option>
+                <option value="Cloud">Cloud</option>
+                <option value="DevOps">DevOps</option>
+                <option value="Mobile">Mobile</option>
+              </select>
+              <input
+                type="text"
+                value={collegeFilter}
+                onChange={(e) => setCollegeFilter(e.target.value)}
+                placeholder="Filter by college / organization..."
+                className="bg-gray-900/70 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none w-64"
+              />
+              <select
+                value={interestFilter}
+                onChange={(e) => setInterestFilter(e.target.value)}
+                className="bg-gray-900/70 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 outline-none"
+              >
+                <option value="">All Interests</option>
+                <option value="AI/ML">AI / ML</option>
+                <option value="Web3">Web3</option>
+                <option value="Blockchain">Blockchain</option>
+                <option value="Open Source">Open Source</option>
+                <option value="FinTech">FinTech</option>
+                <option value="Sustainability">Sustainability</option>
+                <option value="Cybersecurity">Cybersecurity</option>
+                <option value="IoT">IoT</option>
+                <option value="Game Dev">Game Dev</option>
+                <option value="AR/VR">AR / VR</option>
+                <option value="Design">Design</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {loading && (
@@ -260,6 +408,14 @@ export default function PublicAccessPage() {
                     <div>
                       <div className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">{u.name}</div>
                       <div className="text-sm text-gray-400">{u.title || u.email}</div>
+                      {u.username && (
+                        <div className="text-xs text-purple-400/80 mt-0.5">@{u.username}</div>
+                      )}
+                      {u.college && (
+                        <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                          <GraduationCap className="w-3 h-3 inline" /> {u.college}
+                        </div>
+                      )}
                       
                       {/* Availability Badge */}
                       <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/50 text-blue-300 border border-blue-800">
@@ -310,6 +466,23 @@ export default function PublicAccessPage() {
                       <p className="text-gray-500 text-sm italic">No skills listed</p>
                     )}
                   </div>
+
+                  {/* Hackathon Interests */}
+                  {Array.isArray(u.hackathon_interests) && u.hackathon_interests.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-300 mb-3 flex items-center">
+                        <Sparkles className="w-4 h-4 mr-1 text-pink-400" />
+                        Hackathon Interests
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {u.hackathon_interests.slice(0, 5).map((interest: string, i: number) => (
+                          <span key={i} className="px-3 py-1.5 bg-pink-900/30 border border-pink-800/50 rounded-full text-xs font-medium text-pink-300">
+                            {interest}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Stats Section - Real-time data */}
                   <div className="grid grid-cols-3 gap-4 py-2">

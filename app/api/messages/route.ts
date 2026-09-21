@@ -1,269 +1,215 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getApiSessionUser } from '@/lib/api-auth'
 
+// Resolve a synthetic "direct-<otherUserId>" conversation id to the real
+// conversation UUID (creating it if needed via the shared RPC).
+async function resolveDirectConversationId(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  currentUserId: string,
+  targetUserId: string
+): Promise<string | null> {
+  const { data: convId, error: rpcError } = await supabase.rpc(
+    'get_or_create_direct_conversation',
+    { p_user_a: currentUserId, p_user_b: targetUserId }
+  )
+  if (!rpcError && convId) return convId as string
+
+  try {
+    const { data: forMe } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', currentUserId)
+
+    const { data: forOther } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', targetUserId)
+
+    const myIds = new Set((forMe || []).map((r: any) => r.conversation_id))
+    const shared = (forOther || []).find((r: any) => myIds.has(r.conversation_id))
+    if (shared?.conversation_id) return shared.conversation_id
+  } catch {}
+
+  const { data: legacyConv } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('type', 'direct')
+    .in('created_by', [currentUserId, targetUserId])
+    .limit(1)
+  if (legacyConv && legacyConv[0]) return legacyConv[0].id
+
+  return null
+}
+
+// Is this user a participant of the conversation?
+async function isParticipant(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  conversationId: string,
+  userId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('conversation_participants')
+    .select('conversation_id')
+    .eq('conversation_id', conversationId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  return !!data
+}
+
+// GET /api/messages?conversation_id=...
 export async function GET(request: NextRequest) {
   const supabase = createServerSupabaseClient()
+
+  // Messages are private - only signed-in participants may read them.
+  const { user, error } = await getApiSessionUser(request)
+  if (!user) {
+    return NextResponse.json({ error: error || 'Authentication required' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
-
   const conversation_id = searchParams.get('conversation_id')
-  const user_id = searchParams.get('user_id')
-  const limit = parseInt(searchParams.get('limit') || '50')
+  const limit = parseInt(searchParams.get('limit') || '100')
 
-  // If conversation_id is provided, fetch messages for that conversation
-  if (conversation_id) {
-    try {
-      // For direct conversations (format: direct-{userId}) between two users
-      if (conversation_id.startsWith('direct-')) {
-        const otherUserId = conversation_id.replace('direct-', '')
+  if (!conversation_id) {
+    return NextResponse.json([])
+  }
 
-        // We need the current user's id to locate the shared conversation
-        const currentUserId = user_id || ''
+  try {
+    // Synthetic direct conversation id -> real conversation UUID
+    let finalConversationId: string | null = conversation_id
+    if (conversation_id.startsWith('direct-')) {
+      const otherUserId = conversation_id.replace('direct-', '')
+      finalConversationId = await resolveDirectConversationId(supabase, user.id, otherUserId)
+      if (!finalConversationId) return NextResponse.json([])
+    }
 
-        let directConvId: string | null = null
-
-        if (currentUserId) {
-          // Find the direct conversation shared by the two users via participants
-          try {
-            const { data: forMe } = await supabase
-              .from('conversation_participants')
-              .select('conversation_id')
-              .eq('user_id', currentUserId)
-
-            const { data: forOther } = await supabase
-              .from('conversation_participants')
-              .select('conversation_id')
-              .eq('user_id', otherUserId)
-
-            const myIds = new Set((forMe || []).map((r: any) => r.conversation_id))
-            const shared = (forOther || []).find((r: any) => myIds.has(r.conversation_id))
-            directConvId = shared?.conversation_id || null
-          } catch (e) {
-            console.log('conversation_participants lookup failed, falling back:', e)
-          }
-
-          // Legacy fallback: a direct conversation created by either user
-          if (!directConvId) {
-            const { data: legacyConv } = await supabase
-              .from('conversations')
-              .select('id')
-              .eq('type', 'direct')
-              .in('created_by', [currentUserId, otherUserId])
-              .limit(5)
-
-            if (legacyConv && legacyConv.length > 0) {
-              directConvId = legacyConv[0].id
-            }
-          }
-        }
-
-        if (directConvId) {
-          try {
-            const { data, error } = await supabase
-              .from('messages')
-              .select(`
-                *,
-                sender:users!messages_sender_id_fkey(id, name, avatar_url, email)
-              `)
-              .eq('conversation_id', directConvId)
-              .order('created_at', { ascending: true })
-              .limit(limit)
-
-            if (!error && data) {
-              return NextResponse.json(data)
-            }
-            console.error('Error fetching direct messages:', error)
-          } catch (e) {
-            console.log('conversation_id column may not exist, falling back to sender-based query')
-          }
-        }
-
-        // Fallback: fetch messages between these two users by sender_id
-        if (currentUserId && otherUserId) {
-          try {
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from('messages')
-              .select(`
-                *,
-                sender:users!messages_sender_id_fkey(id, name, avatar_url, email)
-              `)
-              .or(`and(sender_id.eq.${currentUserId},team_id.is.null),and(sender_id.eq.${otherUserId},team_id.is.null)`)
-              .order('created_at', { ascending: true })
-              .limit(limit)
-
-            if (!fallbackError && fallbackData) {
-              return NextResponse.json(fallbackData)
-            }
-          } catch {}
-        }
-
-        return NextResponse.json([])
-      }
-
-      // Team conversation - fetch by team_id
-      const { data, error } = await supabase
+    // Direct conversations: strict participant check
+    if (finalConversationId && (await isParticipant(supabase, finalConversationId, user.id))) {
+      const { data, error: fetchError } = await supabase
         .from('messages')
         .select(`
           *,
-          sender:users!messages_sender_id_fkey(id, name, avatar_url, email)
+          sender:users!messages_sender_id_fkey(id, name, username, avatar_url, email, title)
+        `)
+        .eq('conversation_id', finalConversationId)
+        .order('created_at', { ascending: true })
+        .limit(limit)
+
+      if (fetchError) {
+        console.error('Error fetching conversation messages:', fetchError)
+        return NextResponse.json([])
+      }
+      return NextResponse.json(data || [])
+    }
+
+    // Legacy team conversations: fetch by team_id (requires team membership)
+    const { data: teamMember } = await supabase
+      .from('team_members')
+      .select('team_id')
+      .eq('team_id', conversation_id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (teamMember) {
+      const { data, error: teamFetchError } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender:users!messages_sender_id_fkey(id, name, username, avatar_url, email, title)
         `)
         .eq('team_id', conversation_id)
         .order('created_at', { ascending: true })
         .limit(limit)
 
-      if (error) {
-        console.error('Error fetching team messages:', error)
+      if (teamFetchError) {
+        console.error('Error fetching team messages:', teamFetchError)
         return NextResponse.json([])
       }
-
       return NextResponse.json(data || [])
-    } catch (error) {
-      console.error('Messages API error:', error)
-      return NextResponse.json([])
     }
+
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+  } catch (err) {
+    console.error('Messages API error:', err)
+    return NextResponse.json([])
   }
-
-  // If user_id is provided, fetch all messages sent by that user
-  if (user_id) {
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          sender:users!messages_sender_id_fkey(id, name, avatar_url, email)
-        `)
-        .eq('sender_id', user_id)
-        .order('created_at', { ascending: false })
-        .limit(limit)
-
-      if (error) {
-        console.error('Error fetching user messages:', error)
-        return NextResponse.json([])
-      }
-
-      return NextResponse.json(data || [])
-    } catch (error) {
-      console.error('Messages API error:', error)
-      return NextResponse.json([])
-    }
-  }
-
-  return NextResponse.json([])
 }
 
+// POST /api/messages  -  body: { conversation_id, content, team_id? }
 export async function POST(request: NextRequest) {
   const supabase = createServerSupabaseClient()
 
+  // The sender is ALWAYS the signed-in user - clients cannot spoof sender_id.
+  const { user, error } = await getApiSessionUser(request)
+  if (!user) {
+    return NextResponse.json({ error: error || 'Authentication required' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
-    const { conversation_id, team_id, sender_id, content } = body
+    const { conversation_id, team_id, content } = body
 
-    console.log('Sending message:', { conversation_id, team_id, sender_id, content })
-
-    if (!content || !sender_id) {
-      return NextResponse.json({ error: 'content and sender_id are required' }, { status: 400 })
+    if (!content || !String(content).trim()) {
+      return NextResponse.json({ error: 'content is required' }, { status: 400 })
     }
 
-    // For direct messages, allow messaging any registered user
-    let directConversationId = null
-    if (conversation_id && conversation_id.startsWith('direct-')) {
-      const otherUserId = conversation_id.replace('direct-', '')
+    let finalConversationId: string | null = null
+    let finalTeamId: string | null = team_id || null
 
-      // Find an existing direct conversation shared by both users (via participants)
-      try {
-        const { data: forMe } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', sender_id)
+    if (conversation_id) {
+      if (conversation_id.startsWith('direct-')) {
+        // Any two registered users can message each other; create-on-demand.
+        const otherUserId = conversation_id.replace('direct-', '')
+        finalConversationId = await resolveDirectConversationId(supabase, user.id, otherUserId)
+      } else if (await isParticipant(supabase, conversation_id, user.id)) {
+        // Real conversation UUID - sender must be a participant.
+        finalConversationId = conversation_id
+      } else {
+        // Team chat: the "conversation_id" is actually a team id. Only team
+        // members may send to the team chat.
+        const { data: teamMember } = await supabase
+          .from('team_members')
+          .select('team_id')
+          .eq('team_id', conversation_id)
+          .eq('user_id', user.id)
+          .maybeSingle()
 
-        const { data: forOther } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', otherUserId)
-
-        const myIds = new Set((forMe || []).map((r: any) => r.conversation_id))
-        const shared = (forOther || []).find((r: any) => myIds.has(r.conversation_id))
-        if (shared) directConversationId = shared.conversation_id
-      } catch (e) {
-        console.log('conversation_participants lookup failed, falling back:', e)
-      }
-
-      // Legacy lookup: a direct conversation created by either user
-      if (!directConversationId) {
-        const { data: existingConv } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('type', 'direct')
-          .in('created_by', [sender_id, otherUserId])
-          .limit(1)
-
-        if (existingConv && existingConv.length > 0) {
-          directConversationId = existingConv[0].id
-        }
-      }
-
-      // Create a new direct conversation if none exists
-      if (!directConversationId) {
-        const { data: newConv, error: convError } = await supabase
-          .from('conversations')
-          .insert({
-            type: 'direct',
-            created_by: sender_id,
-          })
-          .select()
-          .single()
-
-        if (!convError && newConv) {
-          directConversationId = newConv.id
-          
-          // Add both users as participants
-          await supabase
-            .from('conversation_participants')
-            .insert([
-              { conversation_id: newConv.id, user_id: sender_id },
-              { conversation_id: newConv.id, user_id: otherUserId },
-            ])
+        if (teamMember) {
+          finalTeamId = conversation_id
+        } else {
+          return NextResponse.json({ error: 'Access denied' }, { status: 403 })
         }
       }
     }
 
-    // Create the message in Supabase - try with conversation_id first
-    const { data, error } = await supabase
+    if (!finalConversationId && !finalTeamId) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
+    }
+
+    const { data, error: insertError } = await supabase
       .from('messages')
       .insert({
-        conversation_id: directConversationId || null,
-        team_id: team_id || null,
-        sender_id,
-        content,
+        conversation_id: finalConversationId,
+        team_id: finalTeamId,
+        sender_id: user.id,
+        content: String(content).trim(),
         message_type: 'text',
       })
-      .select()
+      .select(`
+        *,
+        sender:users!messages_sender_id_fkey(id, name, username, avatar_url, email, title)
+      `)
       .single()
 
-    if (error) {
-      console.error('Full insert failed, retrying with core fields:', error.message)
-      
-      // If conversation_id column doesn't exist, retry without it
-      const { data: coreData, error: coreError } = await supabase
-        .from('messages')
-        .insert({
-          team_id: team_id || null,
-          sender_id,
-          content,
-        })
-        .select()
-        .single()
-
-      if (coreError) {
-        console.error('Core insert also failed:', coreError.message)
-        return NextResponse.json({ error: coreError.message }, { status: 500 })
-      }
-
-      return NextResponse.json(coreData, { status: 201 })
+    if (insertError) {
+      console.error('Failed to insert message:', insertError)
+      return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
 
     return NextResponse.json(data, { status: 201 })
-  } catch (error) {
-    console.error('Messages API error:', error)
+  } catch (err) {
+    console.error('Messages API error:', err)
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
   }
 }

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { supabase } from "@/lib/supabase"
 import { ArrowLeft, Calendar, Heart, Mail, MessageCircle, MapPin, GraduationCap, Users, Star } from "lucide-react"
 import type { User as Profile } from "@/lib/types"
 
@@ -21,6 +22,7 @@ export default function PublicProfilePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sendingRequest, setSendingRequest] = useState(false)
+  const [version, setVersion] = useState(0)
 
   useEffect(() => {
     if (!userId) {
@@ -32,7 +34,14 @@ export default function PublicProfilePage() {
     const loadUser = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/users/${userId}`)
+        const { getAuthHeaders } = await import("@/lib/supabase")
+        const headers = await getAuthHeaders()
+        const response = await fetch(`/api/users/${userId}`, { headers })
+
+        if (response.status === 401) {
+          window.location.href = "/auth/login"
+          return
+        }
 
         if (response.ok) {
           const userData = await response.json()
@@ -96,6 +105,27 @@ export default function PublicProfilePage() {
     }
 
     loadUser()
+  }, [userId, version])
+
+  // Supabase Realtime: when the viewed user edits their profile, refresh
+  // immediately so others always see the latest data.
+  useEffect(() => {
+    if (!userId) return
+
+    const channel = supabase
+      .channel(`public-profile-live-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "users", filter: `id=eq.${userId}` },
+        () => {
+          setVersion((v) => v + 1)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [userId])
 
   const sendConnectionRequest = async () => {
@@ -205,6 +235,9 @@ export default function PublicProfilePage() {
                   {user.name}
                 </h1>
                 <p className="text-xl text-gray-300 mb-4">{user.title || "Developer"}</p>
+                {user.username && (
+                  <p className="text-sm text-purple-400/80 mb-2">@{user.username}</p>
+                )}
 
                 <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-4">
                   <div className="flex items-center gap-2 text-gray-400">
@@ -223,7 +256,7 @@ export default function PublicProfilePage() {
                   )}
                 </div>
 
-                {(user.role || user.experience_level) && (
+                {(user.role || user.experience_level || user.college) && (
                   <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-4">
                     {user.role && (
                       <span className="px-3 py-1 rounded-full bg-blue-600/20 border border-blue-600/30 text-sm font-medium text-blue-300 capitalize flex items-center gap-1">
@@ -233,6 +266,11 @@ export default function PublicProfilePage() {
                     {user.experience_level && (
                       <span className="px-3 py-1 rounded-full bg-purple-600/20 border border-purple-600/30 text-sm font-medium text-purple-300 capitalize flex items-center gap-1">
                         <GraduationCap className="w-3.5 h-3.5" /> {user.experience_level} level
+                      </span>
+                    )}
+                    {user.college && (
+                      <span className="px-3 py-1 rounded-full bg-green-600/20 border border-green-600/30 text-sm font-medium text-green-300 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5" /> {user.college}
                       </span>
                     )}
                   </div>
@@ -286,6 +324,25 @@ export default function PublicProfilePage() {
                 <p className="text-gray-500 italic">No skills listed yet.</p>
               )}
             </section>
+
+            {Array.isArray(user.hackathon_interests) && user.hackathon_interests.length > 0 && (
+              <section className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 border border-gray-700 rounded-xl p-6">
+                <h2 className="text-2xl font-bold text-white mb-4 flex items-center">
+                  <Star className="w-5 h-5 mr-2 text-pink-400" />
+                  Hackathon Interests
+                </h2>
+                <div className="flex flex-wrap gap-3">
+                  {user.hackathon_interests.map((interest, idx) => (
+                    <span
+                      key={idx}
+                      className="px-4 py-2 bg-gradient-to-r from-pink-900/40 to-purple-900/40 border border-pink-700/30 rounded-full text-sm font-medium text-pink-300"
+                    >
+                      {interest}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           <aside className="space-y-6">

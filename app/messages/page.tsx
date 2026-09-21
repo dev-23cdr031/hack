@@ -69,6 +69,7 @@ import {
   Verified,
 } from "lucide-react"
 import Link from "next/link"
+import { supabase, getAuthHeaders } from "@/lib/supabase"
 
 interface Message {
   id: string
@@ -750,7 +751,8 @@ export default function MessagesPage() {
       // Load the user directory so people can start new chats
       ;(async () => {
         try {
-          const res = await fetch('/api/users?limit=200')
+          const headers = await getAuthHeaders()
+          const res = await fetch('/api/users?limit=200', { headers })
           const data = await res.json()
           setUserDirectory(Array.isArray(data) ? data : [])
         } catch (err) {
@@ -785,6 +787,42 @@ export default function MessagesPage() {
     return () => clearInterval(interval)
   }, [selectedConversation])
 
+  // Supabase Realtime - messages sent by another user appear instantly.
+  useEffect(() => {
+    if (!currentUser) return
+
+    const channel = supabase
+      .channel('realtime-messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const row = payload.new as any
+          if (!row || !row.conversation_id) return
+
+          // Refresh inbox previews whenever any new message lands.
+          fetchConversations(currentUser.id)
+
+          // If the open chat matches the new message, reload its history so
+          // the message appears instantly (idempotent - no duplicates).
+          if (selectedConversation && row.sender_id !== currentUser.id) {
+            const exactMatch = !selectedConversation.id.startsWith('direct-') &&
+              row.conversation_id === selectedConversation.id
+            const legacyMatch = selectedConversation.id.startsWith('direct-')
+            if (exactMatch || legacyMatch) {
+              fetchMessages(selectedConversation.id)
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, selectedConversation])
+
 
   // Cleanup on component unmount
   useEffect(() => {
@@ -809,7 +847,8 @@ export default function MessagesPage() {
   // Fetch conversations for the current user
   const fetchConversations = async (userId: string) => {
     try {
-      const response = await fetch(`/api/conversations?user_id=${userId}`)
+      const headers = await getAuthHeaders()
+      const response = await fetch(`/api/conversations?user_id=${userId}`, { headers })
 
       if (!response.ok) {
         setConversations([])
@@ -833,8 +872,8 @@ export default function MessagesPage() {
   // Fetch messages for a specific conversation
   const fetchMessages = async (conversationId: string, userId?: string) => {
     try {
-      const activeUserId = userId || currentUser?.id || ''
-      const response = await fetch(`/api/messages?conversation_id=${conversationId}${activeUserId ? `&user_id=${activeUserId}` : ''}`)
+      const headers = await getAuthHeaders()
+      const response = await fetch(`/api/messages?conversation_id=${conversationId}`, { headers })
 
       if (!response.ok) {
         setMessages([])
@@ -890,12 +929,12 @@ export default function MessagesPage() {
     setSendingMessage(true)
 
     try {
+      const headers = await getAuthHeaders()
       const response = await fetch('/api/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           conversation_id: selectedConversation.id,
-          sender_id: currentUser.id,
           content: newMessage.trim(),
           message_type: 'text'
         })
@@ -950,9 +989,10 @@ export default function MessagesPage() {
   // Mark messages as read
   const markAsRead = async (conversationId: string, userId: string) => {
     try {
+      const headers = await getAuthHeaders()
       await fetch('/api/conversations', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           conversation_id: conversationId,
           user_id: userId
@@ -970,31 +1010,20 @@ export default function MessagesPage() {
     fetchMessages(conversation.id)
   }
 
-  // Open (or create) a direct conversation with a specific user
+  // Open (or create) a direct conversation with a specific user.
+  // The conversation lives in Supabase and is shared by both users.
   const openDirectChat = async (currentUserId: string, targetUserId: string) => {
     try {
-      const res = await fetch(`/api/users/${targetUserId}`)
+      const headers = await getAuthHeaders()
+      const res = await fetch('/api/conversations/direct', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ user_id: targetUserId }),
+      })
       if (!res.ok) return
-      const targetUser = await res.json()
-      if (!targetUser?.id) return
-
-      const conv: Conversation = {
-        id: `direct-${targetUser.id}`,
-        name: targetUser.name || 'User',
-        type: 'direct',
-        avatar_url: targetUser.avatar_url || '',
-        last_message: '',
-        last_message_time: '',
-        unread_count: 0,
-        participants: [{
-          id: targetUser.id,
-          name: targetUser.name || 'User',
-          avatar_url: targetUser.avatar_url || '',
-          bio: targetUser.bio,
-          title: targetUser.title,
-          status: 'online'
-        }]
-      }
+      const data = await res.json()
+      const conv: Conversation = data.conversation
+      if (!conv) return
 
       setConversations(prev => prev.some(c => c.id === conv.id) ? prev : [conv, ...prev])
       setSelectedConversation(conv)

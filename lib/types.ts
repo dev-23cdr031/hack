@@ -2,10 +2,13 @@ export interface User {
   id: string
   name: string
   email: string
+  username?: string
   avatar_url?: string
   bio?: string
   title?: string
   skills: string[]
+  college?: string
+  hackathon_interests?: string[]
   github_url?: string
   linkedin_url?: string
   portfolio_url?: string

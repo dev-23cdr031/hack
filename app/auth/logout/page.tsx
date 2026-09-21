@@ -2,21 +2,31 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 import { Loader2 } from "lucide-react"
 
 export default function LogoutPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Clear all auth data
-    localStorage.removeItem("user")
-    localStorage.removeItem("userId")
-    localStorage.removeItem("isAuthenticated")
-    localStorage.removeItem("userType")
-    localStorage.removeItem("isAdmin")
+    ;(async () => {
+      try {
+        // Sign out of Supabase (clears stored tokens/session).
+        await supabase.auth.signOut()
+      } catch (err) {
+        console.error("Sign out error:", err)
+      }
 
-    // Redirect to home
-    router.push("/")
+      // Clear all local auth data
+      localStorage.removeItem("user")
+      localStorage.removeItem("userId")
+      localStorage.removeItem("isAuthenticated")
+      localStorage.removeItem("userType")
+      localStorage.removeItem("isAdmin")
+
+      // Redirect to home
+      router.push("/")
+    })()
   }, [router])
 
   return (

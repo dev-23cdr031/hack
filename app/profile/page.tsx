@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
-import { supabase } from "@/lib/supabase"
+import { supabase, getAuthHeaders } from "@/lib/supabase"
 import type { User as UserType, Project as ProjectType } from "@/lib/types"
 import {
   Settings,
@@ -239,7 +239,9 @@ export default function ProfilePage() {
       setError(null)
 
       // Fetch user data
-      const userResponse = await fetch(`/api/users/${userId}`)
+      const { getAuthHeaders } = await import("@/lib/supabase")
+      const headers = await getAuthHeaders()
+      const userResponse = await fetch(`/api/users/${userId}`, { headers })
 
       if (!userResponse.ok) {
         if (userResponse.status === 404) {
@@ -445,7 +447,7 @@ export default function ProfilePage() {
     try {
       const response = await fetch(`/api/users/${user.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify(updatedData)
       })
 
@@ -480,7 +482,7 @@ export default function ProfilePage() {
     if (!user) return
     const response = await fetch(`/api/users/${user.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await getAuthHeaders(),
       body: JSON.stringify({
         experience: nextExperience,
         education: nextEducation,
@@ -758,6 +760,17 @@ export default function ProfilePage() {
       // Update localStorage
       const updatedUser = { ...user, avatar_url: data.url }
       localStorage.setItem('user', JSON.stringify(updatedUser))
+
+      // Persist the new avatar to Supabase so other users see it too
+      try {
+        await fetch(`/api/users/${user.id}`, {
+          method: 'PUT',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({ avatar_url: data.url })
+        })
+      } catch (err) {
+        console.error('Error persisting avatar URL:', err)
+      }
 
       alert('Profile photo uploaded successfully!')
 
